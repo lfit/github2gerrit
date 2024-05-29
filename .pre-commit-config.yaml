@@ -1,0 +1,49 @@
+---
+ci:
+  autofix_commit_msg: "Chore: pre-commit autoupdate"
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: f71fa2c1f9cf5cb705f73dffe4b21f7c61470ba9 # frozen: v4.4.0
+    hooks:
+      - id: trailing-whitespace
+      - id: check-added-large-files
+      - id: check-ast
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-xml
+      - id: check-yaml
+      - id: debug-statements
+      - id: end-of-file-fixer
+      - id: requirements-txt-fixer
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+      - id: no-commit-to-branch
+        args:
+          - --branch=dev
+          - --branch=master
+          - --branch=main
+          - --branch=rc
+          - --branch=production
+
+  - repo: https://github.com/jorisroovers/gitlint
+    rev: acc9d9de6369b76d22cb4167029d2035e8730b98 # frozen: v0.19.1
+    hooks:
+      - id: gitlint
+
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: 672abe14d309fc28817d45b6be25ea976a92222a # frozen: v3.0.2
+    hooks:
+      - id: prettier
+        stages: [commit]
+
+  - repo: https://github.com/adrienverge/yamllint.git
+    rev: b05e028c5881819161d11cb543fd96a30c06cceb # frozen: v1.32.0
+    hooks:
+      - id: yamllint
+        types: [yaml]
+
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: 375289a39f5708101b1f916eb729e8d6da96993f # frozen: v0.9.0.5
+    hooks:
+      - id: shellcheck
