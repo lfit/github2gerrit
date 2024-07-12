@@ -1,46 +1,44 @@
 # github2gerrit github action
 
-This action extracts the commits from a Github pull-request and submits them
-to a upstream Gerrit repository. The action allows GitHub developers to contribute to Gerrit based repositories that are primarily developed on Gerrit servers and replicated onto Github.
+This action extracts the commits from a GitHub pull request and submits them to an upstream Gerrit repository. It allows GitHub developers to contribute to Gerrit-based repositories that are primarily developed on Gerrit servers and replicated onto GitHub.
 
 ## Pre-requisites
 
-1. Github Replication is setup on the Gerrit repositry over SSH. Refer to the [Gerrit replication configuration setup guide] maintained by Linux Foundation release engineering team. (https://docs.releng.linuxfoundation.org/en/latest/infra/gerrit.html)
-2. Create a user account with Github with permisions to submit change to Gerrit and ensure the added on Github organization or repository as member.
+1. GitHub replication is set up on the Gerrit repository over SSH. Refer to the [Gerrit replication configuration setup guide](https://docs.releng.linuxfoundation.org/en/latest/infra/gerrit.html) maintained by the Linux Foundation release engineering team.
+2. Create a user account on GitHub with permissions to submit changes to Gerrit and ensure it is added to the GitHub organization or repository as a member.
 
-## How the action works
+## How the Action Works
 
-The action and workflow is put together written in bash scripting, git and git-review.
+The action and workflow are written in Bash scripting, Git, and git-review.
 
-1. The action is triggered when a new pull-request is created on Github repository
-configured with the action.
-2. Squash all the commits in the pull-request into a single commits.
-3. Check for a change-id line present in the pull-request commit message. If its not present, add the change-Id on the commit. If the change-Id is found on any of the commits it will be reused along with the patch.
-4. Create a Gerrit patch with the Change-ID, squashing all PR changes into a single commit.
-5. Close the pull-request once Gerrit patch is submitted. A comment is updated to the pull-request along with the URL to the change is added to the pull request. Any updates changes will require the pull-request to be re-opened. Updates to the pull-request is done with a force push which triggers the workflows to ensure that change is re-submitted.
+1. The action is triggered when a new pull request is created on a GitHub repository configured with the action.
+2. Squash all the commits in the pull request into a single commit.
+3. Check for a Change-Id line in the pull request commit message. If it is not present, add the Change-Id to the commit. If the Change-Id is found in any of the commits, it will be reused along with the patch.
+4. Create a Gerrit patch with the Change-Id, squashing all PR changes into a single commit.
+5. Close the pull request once the Gerrit patch is submitted. A comment is added to the pull request with the URL to the change. Any updates will require the pull request to be reopened. Updates to the pull request are done with a force push, which triggers the workflows to ensure the change is resubmitted.
 
+## Caveats - Future Improvements
 
-## Caveats - Future improvements
+- Commits in a pull request are squashed into a single commit before submitting the change request to Gerrit.
+- Code review comments on Gerrit will not be updated back on the pull request, requiring developers to follow up on the Gerrit change request URL.
 
-- Commits in a pull-request are squashed into a single commit before its submitted the change request onto Gerrit.
-- Code review comments on Gerrit will not updated back on the pull-request and requires the developers to follow up on the Gerrit change request URL.
+## Required Inputs
 
-## Inputs - required
+- `GERRIT_KNOWN_HOSTS`: Known host of the Gerrit repository.
+- `GERRIT_PROJECT`: Gerrit project repository.
+- `GERRIT_SERVER`: Gerrit server FQDN.
+- `GERRIT_SSH_PRIVKEY_G2G`: SSH private key pair (The private key has to be added to the Gerrit user's account settings. Gerrit -> User Settings).
+- `GERRIT_SSH_USER_G2G`: Gerrit server username (Required to connect to Gerrit).
+- `GERRIT_SSH_USER_G2G_EMAIL`: Email of the Gerrit user.
 
-- GERRIT_KNOWN_HOSTS: known host of Gerrit repository
-- GERRIT_PROJECT: Gerrit project repository
-- GERRIT_SERVER: Gerrit server FQDN
-- GERRIT_SSH_PRIVKEY_G2G: SSH Private key pair (The private key has to be added to the Gerrit users account settings. Gerrit -> User Settings.)
-- GERRIT_SSH_USER_G2G: Gerrit Server Username (Required to connect to Gerrit)
-- GERRIT_SSH_USER_G2G_EMAIL: Email of the Gerrit user.
+## Optional Inputs
 
-## Inputs - optional
-- ORGANIZATION: The Github Organization or project.
-- REVIEWER_EMAI: Committers email list (comma separated list without spaces)
+- `ORGANIZATION`: The GitHub organization or project.
+- `REVIEWER_EMAIL`: Committers' email list (comma-separated list without spaces).
 
-## Full Example usage with composite action
+## Full Example Usage with Composite Action
 
-Use the composite action as step in the workflow for further processing.
+Use the composite action as a step in the workflow for further processing.
 
 ```yaml
 ---
@@ -59,7 +57,6 @@ on:
 
 jobs:
   call-in-g2g-workflow:
-    if: false
     permissions:
       contents: read
       pull-requests: write
@@ -115,7 +112,6 @@ concurrency:
 
 jobs:
   call-in-g2g-workflow:
-    if: false
     permissions:
       contents: read
       pull-requests: write
@@ -131,3 +127,7 @@ jobs:
       GERRIT_SSH_PRIVKEY_G2G: ${{ secrets.GERRIT_SSH_PRIVKEY_G2G }}
 
 ```
+
+## Contributions
+
+We welcome contributions! If you have any ideas, suggestions, or improvements, please feel free to open an issue or submit a pull request. Your contributions are greatly appreciated!
