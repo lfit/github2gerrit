@@ -143,27 +143,13 @@ runs:
         # Init gerrit repo
         git review -s -v
 
-    - name: Print the pull-request
+    - name: Extract the pull-request number
       shell: bash
       # yamllint disable rule:line-length
       run: |
         set -x
         export PR_NUMBER="${{ github.event.pull_request.number || github.event.issue.number }}"
         echo "PR_NUMBER=$PR_NUMBER" >> "$GITHUB_ENV"
-
-    - name: Download the PR .patch and .diff locally
-      if: env.PR_NUMBER != ''
-      shell: bash
-      # yamllint disable rule:line-length
-      run: |
-        set -x
-
-        patch_path="${{ inputs.ORGANIZATION }}/${{ env.PROJECT_REPO_GITHUB }}/pull/${{ env.PR_NUMBER }}.patch"
-        wget -q "https://github.com/${patch_path}"
-
-        if [[ -f "${{ env.PR_NUMBER }}.patch" ]]; then
-            echo "PR-${{ env.PR_NUMBER }} download successfully"
-        fi
 
     - name: Get the number of commits in the pull-request
       if: ${{ github.event_name == 'pull_request_target' }}
@@ -185,9 +171,6 @@ runs:
 
         cd "$GITHUB_WORKSPACE/${{ env.PROJECT_REPO_GITHUB }}-${{ env.GERRIT_BRANCH }}"
 
-        # Apply the patch on the HEAD
-        # git am --show-current-patch=diff "$GITHUB_WORKSPACE/${{ env.PR_NUMBER }}.patch"
-
         git --no-pager log --graph --all --decorate --pretty=oneline -n"${{ env.PR_COMMITS }}"
 
         # Create a Change-id from all the PR
@@ -196,29 +179,26 @@ runs:
 
         # Check if change-id is present in each commit and use the first one
         # Capture and check for signed-of-by and Change-Id
-        git log -v --format=%B --reverse HEAD..HEAD@{1} | grep -E "^(Change-Id)" > change-ID.txt || true
-        git log -v --format=%B --reverse HEAD..HEAD@{1} | grep -E "^(Signed-off-by)" > signed-off-by.txt || true
-        git log -v --format=%B --reverse HEAD..HEAD@{1} | grep -Ev "^(Signed-off-by|Change-Id)" > commit-msg.txt
+        git log -v --format=%B --reverse "HEAD..HEAD@{1}" | grep -E "^(Change-Id)" > change-ID.txt || true
+        git log -v --format=%B --reverse "HEAD..HEAD@{1}" | grep -E "^(Signed-off-by)" > signed-off-by.txt || true
+        git log -v --format=%B --reverse "HEAD..HEAD@{1}" | grep -Ev "^(Signed-off-by|Change-Id)" > commit-msg.txt
 
         if [[ -f commit-msg.txt ]]; then
-          cat commit-msg.txt
           commit_message="${commit_message:-commit-msg.txt}"
         fi
 
         if [[ -f change-ID.txt ]]; then
-          cat change-ID.txt
           commit_message+=' '
           commit_message+="change-ID.txt"
         fi
 
         if [[ -f signed-off-by.txt ]]; then
-          cat signed-off-by.txt | sort | uniq -d > signed-off-by-final.txt
-          cat signed-off-by-final.txt
+          <signed-off-by.txt | sort | uniq -d > signed-off-by-final.txt
           commit_message+=' '
           commit_message+="signed-off-by-final.txt"
         fi
 
-        git commit -s -v --no-edit -m "$(cat ${commit_message})"
+        git commit -s -v --no-edit -m "$(< ${commit_message})"
         git log -n2
 
         # TODO: Get rid of any merge commit in the patch

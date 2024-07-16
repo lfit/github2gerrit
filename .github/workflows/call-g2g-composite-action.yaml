@@ -34,9 +34,3 @@ jobs:
           GERRIT_SSH_USER_G2G: ${{ vars.GERRIT_SSH_USER_G2G }}
           GERRIT_SSH_USER_G2G_EMAIL: ${{ vars.GERRIT_SSH_USER_G2G_EMAIL }}
           ORGANIZATION: ${{ vars.ORGANIZATION }}
-
-      - name: "Output change-number and change URL"
-        shell: bash
-        run: |
-          echo "Change URL: ${{ steps.change_num.outputs.GERRIT_CHANGE_REQUEST_URL }}"
-          echo "Change number: ${{ steps.change_num.outputs.GERRIT_CHANGE_REQUEST_NUMBER }}"
