@@ -188,12 +188,12 @@ jobs:
           fi
 
           if [[ -f signed-off-by.txt ]]; then
-            <signed-off-by.txt | sort | uniq -d > signed-off-by-final.txt
+            sort -u signed-off-by.txt -o signed-off-by-final.txt
             commit_message+=' '
             commit_message+="signed-off-by-final.txt"
           fi
 
-          git commit -s -v --no-edit -m "$(< ${commit_message})"
+          git commit -s -v --no-edit -m "$(< "${commit_message}")"
           git log -n2
 
           # TODO: Get rid of any merge commit in the patch
