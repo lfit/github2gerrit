@@ -190,6 +190,7 @@ jobs:
             commit_message+="signed-off-by-final.txt"
           fi
 
+          # shellcheck disable=SC2086
           git commit -s -v --no-edit -m "$(cat $commit_message)"
           git log -n2
 
@@ -215,13 +216,9 @@ jobs:
           # retrive change-id from the submitted PR
           gerrit_change_id=$(git show HEAD --format=%B -s | grep Change-Id: | cut -d " " -f2;)
 
-          # Set a temp PR to test with ACT
-          if [[ "$gerrit_change_id" == '' ]]; then
-              echo "FAIL: Could not find the change-Id"
-          else
+          if [[ "$gerrit_change_id" != '' ]]; then
               echo "GERRIT_CHANGE_ID=${gerrit_change_id}" >> "$GITHUB_ENV"
           fi
-          # echo "GERRIT_CHANGE_ID=Iafa61d4b861941624c4c44b0fde21f534a7344ad" >> "$GITHUB_ENV"
 
       - name: Retrive the Gerrit change number from Change-ID
         if: env.GERRIT_CHANGE_ID != ''
@@ -252,9 +249,9 @@ jobs:
           retries: 3
           retry-exempt-status-codes: 400,401
           script: |
-            const output = `The pull-request PR-${{ env.PR_NUMBER }} is submitted to Gerrit [${{ inputs.ORGANIZATION }}](https://${{ inputs.GERRIT_SERVER }})! \n
+            const output = `The pull-request PR-${{ env.PR_NUMBER }} is submitted to Gerrit [${{ vars.ORGANIZATION }}](https://${{ inputs.GERRIT_SERVER }})! \n
               To follow up on the change visit: [${{ env.GERRIT_CHANGE_REQUEST_NUMBER }}](${{ env.GERRIT_CHANGE_REQUEST_URL }}) \n \n
-              NOTE: The pull-request PR-${{ env.PR_NUMBER }} will be closed, re-opening the pull-request may not update the same commit and may result in duplicate changes on Gerrit.`
+              NOTE: The pull-request PR-${{ env.PR_NUMBER }} will be closed, re-opening the pull-request will not update the same commit and may result in duplicate changes on Gerrit.`
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
