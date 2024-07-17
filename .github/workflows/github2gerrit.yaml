@@ -163,9 +163,6 @@ jobs:
 
           cd "$GITHUB_WORKSPACE/${{ env.PROJECT_REPO_GITHUB }}-${{ env.GERRIT_BRANCH }}"
 
-          # Apply the patch on the HEAD
-          # git am --show-current-patch=diff "$GITHUB_WORKSPACE/${{ env.PR_NUMBER }}.patch"
-
           git --no-pager log --graph --all --decorate --pretty=oneline -n"${{ env.PR_COMMITS }}"
 
           # Create a Change-id from all the PR

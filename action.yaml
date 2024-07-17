@@ -198,7 +198,7 @@ runs:
           commit_message+="signed-off-by-final.txt"
         fi
 
-        git commit -s -v --no-edit -m "$(< "${commit_message}")"
+        git commit -s -v --no-edit -m "$(cat "${commit_message}")"
         git log -n2
 
         # TODO: Get rid of any merge commit in the patch
