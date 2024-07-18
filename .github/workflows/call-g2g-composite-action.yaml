@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2024 The Linux Foundation <abelur@linux.com>
 
+# Calls the github2gerrit composite action.
 name: call-github2gerrit-composite-action
 
 # yamllint disable-line rule:truthy
@@ -27,9 +28,10 @@ jobs:
         id: gerrit-upload
         uses: askb/github2gerrit@main
         with:
+          FETCH_DEPTH: 10
           GERRIT_KNOWN_HOSTS: ${{ vars.GERRIT_KNOWN_HOSTS }}
-          GERRIT_PROJECT: ${{ vars.GERRIT_PROJECT }}
           GERRIT_SERVER: ${{ vars.GERRIT_SERVER }}
+          GERRIT_SERVER_PORT: "29418"
           GERRIT_SSH_PRIVKEY_G2G: ${{ secrets.GERRIT_SSH_PRIVKEY_G2G }}
           GERRIT_SSH_USER_G2G: ${{ vars.GERRIT_SSH_USER_G2G }}
           GERRIT_SSH_USER_G2G_EMAIL: ${{ vars.GERRIT_SSH_USER_G2G_EMAIL }}

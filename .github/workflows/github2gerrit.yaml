@@ -7,17 +7,29 @@ name: github2gerrit-reusable-workflow
 on:
   workflow_call:
     inputs:
+      FETCH_DEPTH:
+        description: "fetch-depth for the clone. (Default: 10)"
+        required: false
+        default: "10"
+        type: string
       GERRIT_KNOWN_HOSTS:
         description: "known hosts"
         required: true
         type: string
       GERRIT_SERVER:
         description: "Gerrit hostname ex: git.opendaylight.org"
-        required: true
+        required: false
+        default: ""
+        type: string
+      GERRIT_SERVER_PORT:
+        description: "Gerrit port. (Default: 29418)"
+        required: false
+        default: "29418"
         type: string
       GERRIT_PROJECT:
         description: "Gerrit project name. ex: releng/builder"
-        required: true
+        required: false
+        default: ""
         type: string
       GERRIT_SSH_USER_G2G:
         description: "Gerrit user-id for SSH"
@@ -38,7 +50,7 @@ on:
         type: string
     secrets:
       GERRIT_SSH_PRIVKEY_G2G:
-        description: "priv key"
+        description: "SSH Private key"
         required: true
 
 concurrency:
@@ -64,16 +76,70 @@ jobs:
           git review --version
           jq --version
 
-      - name: Set env with Gerrit Github repo format
+      - name: Clone Github repo where the PR is submitted
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: ${{ inputs.fetch_depth }}
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: "Read inputs to set PROJECT_REPO_{GERRIT,GITHUB} if .gitreview is undefined"
+        if: ${{ hashFiles('.gitreview') == '' }}
         shell: bash
         run: |
           set -x
+
           project_repo_github="${{ github.repository }}"
-          # change any '-' to '/' and remove owner name
-          project_repo_github="${project_repo_github#*/}"
-          project_repo_gerrit="${project_repo_github//-//}"
+          if [[ ${{ inputs.GERRIT_PROJECT }} != "$project_repo_github" ]]; then
+              # remove repo owner name
+              project_repo_github="${project_repo_github#*/}"
+              # change any '-' to '/' and
+              project_repo_gerrit="${project_repo_github//-//}"
+              echo "PROJECT_REPO_GITHUB=${project_repo_github}" >> "$GITHUB_ENV"
+              echo "PROJECT_REPO_GERRIT=${project_repo_gerrit}" >> "$GITHUB_ENV"
+          fi
+
+      - name: Read .gitreview to set PROJECT_REPO_GERRIT & PROJECT_REPO_GITHUB
+        if: ${{ hashFiles('.gitreview') != '' }}
+        shell: bash
+        # yamllint disable rule:line-length
+        run: |
+          set -x
+
+          project_repo_gerrit_git=$(grep -E "project" .gitreview | cut -d "=" -f2)
+          # strip .git suffix
+          project_repo_gerrit="${project_repo_gerrit_git//.*}"
+          # change any '/' to '-' nested repos are not available on Github
+          project_repo_github="${project_repo_gerrit////-}"
+
           echo "PROJECT_REPO_GERRIT=${project_repo_gerrit}" >> "$GITHUB_ENV"
           echo "PROJECT_REPO_GITHUB=${project_repo_github}" >> "$GITHUB_ENV"
+
+      - name: Read .gitreview and set env GERRIT_SERVER and GERRIT_PORT
+        if: ${{ hashFiles('.gitreview') != '' }}
+        shell: bash
+        # yamllint disable rule:line-length
+        run: |
+          set -x
+
+          gerrit_server=$(grep -E "host" .gitreview | cut -d "=" -f2)
+          gerrit_server_port=$(grep -E "port" .gitreview | cut -d "=" -f2)
+          echo "GERRIT_SERVER=${gerrit_server}" >> "$GITHUB_ENV"
+          echo "GERRIT_SERVER_PORT=${gerrit_server_port}" >> "$GITHUB_ENV"
+
+      - name: Set GERRIT_SERVER and GERRIT_PORT when .gitreview is undefined
+        if: ${{ hashFiles('.gitreview') == '' }}
+        shell: bash
+        # yamllint disable rule:line-length
+        run: |
+          set -x
+
+          if [[ ${{ inputs.GERRIT_SERVER }} != '' ]]; then
+              echo "GERRIT_SERVER=${{ inputs.GERRIT_SERVER }}" >> "$GITHUB_ENV"
+          fi
+
+          if [[ ${{ inputs.GERRIT_SERVER_PORT }} != '' ]]; then
+              echo "GERRIT_SERVER_PORT=${{ inputs.GERRIT_SERVER_PORT }}" >> "$GITHUB_ENV"
+          fi
 
       - name: Set env GITHUB branch in env
         shell: bash
@@ -81,21 +147,12 @@ jobs:
           gerrit_branch="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
           echo "GERRIT_BRANCH=${gerrit_branch}" >> "$GITHUB_ENV"
 
-      - name: Clone Github repo where the PR is submitted
-        uses: actions/checkout@v4
-        with:
-          ssh-user: ${{ inputs.GERRIT_SSH_USER_G2G }}
-          path: "${{ env.PROJECT_REPO_GITHUB }}-${{ env.GERRIT_BRANCH }}"
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha }}
-
       - name: Print last X commits in the git log
         if: env.ACT == 'true'
         shell: bash
         # yamllint disable rule:line-length
         run: |
           set -x
-          cd "$GITHUB_WORKSPACE/${{ env.PROJECT_REPO_GITHUB }}-${{ env.GERRIT_BRANCH }}"
           git --no-pager log --graph --all --decorate --pretty=oneline -n5
 
       - name: Install SSH Key
@@ -105,7 +162,7 @@ jobs:
           name: "id_rsa"
           known_hosts: ${{ inputs.GERRIT_KNOWN_HOSTS }}
           config: |
-            Host ${{ inputs.GERRIT_SERVER }}
+            Host ${{ env.GERRIT_SERVER }}
               User ${{ inputs.GERRIT_SSH_USER_G2G }}
               Port 29418
               PubkeyAcceptedKeyTypes +ssh-rsa
@@ -118,22 +175,18 @@ jobs:
         run: |
           set -x
 
-          # Query for a pre-existing gerrit review
-          cd "$GITHUB_WORKSPACE/${{ env.PROJECT_REPO_GITHUB }}-${{ env.GERRIT_BRANCH }}"
-
           # Setup global git config required by git-review
           git config --global gitreview.username ${{ inputs.GERRIT_SSH_USER_G2G }}
           git config --global user.name ${{ inputs.GERRIT_SSH_USER_G2G }}
           git config --global user.email ${{ inputs.GERRIT_SSH_USER_G2G_EMAIL }}
 
-          # Add Gerrit remote and print remote settings
-          git remote add gerrit	ssh://${{ inputs.GERRIT_SSH_USER_G2G }}@${{ inputs.GERRIT_SERVER }}:29418/${{ env.PROJECT_REPO_GERRIT }}.git
-          git remote -v
-
           # Workaround for git-review failing to copy the commit-msg hook to submodules
           git config core.hooksPath "$(git rev-parse --show-toplevel)/.git/hooks"
           # Init gerrit repo
           git review -s -v
+
+          # print remote settings
+          git remote -v
 
       - name: Extract pull-request number
         shell: bash
@@ -149,19 +202,17 @@ jobs:
         # yamllint disable rule:line-length
         run: |
           set -x
-          cd "$GITHUB_WORKSPACE/${{ env.PROJECT_REPO_GITHUB }}-${{ env.GERRIT_BRANCH }}"
           num_commits="$(gh pr view ${{ env.PR_NUMBER }} --json commits | jq '.[] | length')"
           echo "PR_COMMITS=$num_commits" >> "$GITHUB_ENV"
         env:
           GH_TOKEN: ${{ github.token }}
 
-      - name: Apply patch on local repo
+      - name: Squash commits into a single commit
         shell: bash
+        if: ${{ (env.PR_COMMITS > 0) }}
         # yamllint disable rule:line-length
         run: |
           set -x
-
-          cd "$GITHUB_WORKSPACE/${{ env.PROJECT_REPO_GITHUB }}-${{ env.GERRIT_BRANCH }}"
 
           git --no-pager log --graph --all --decorate --pretty=oneline -n"${{ env.PR_COMMITS }}"
 
@@ -171,7 +222,7 @@ jobs:
 
           # Check if change-id is present in each commit and use the first one
           # Capture and check for signed-of-by and Change-Id
-          git log -v --format=%B --reverse "HEAD..HEAD@{1}" | grep -E "^(Change-Id)" > change-ID.txt || true
+          git log -v --format=%B --reverse "HEAD..HEAD@{1}" | grep -E "^(Change-Id)" > change-Id.txt || true
           git log -v --format=%B --reverse "HEAD..HEAD@{1}" | grep -E "^(Signed-off-by)" > signed-off-by.txt || true
           git log -v --format=%B --reverse "HEAD..HEAD@{1}" | grep -Ev "^(Signed-off-by|Change-Id)" > commit-msg.txt
 
@@ -179,9 +230,9 @@ jobs:
             commit_message="${commit_message:-commit-msg.txt}"
           fi
 
-          if [[ -f change-ID.txt ]]; then
+          if [[ -f change-Id.txt ]]; then
             commit_message+=' '
-            commit_message+="change-ID.txt"
+            commit_message+="change-Id.txt"
           fi
 
           if [[ -f signed-off-by.txt ]]; then
@@ -194,9 +245,6 @@ jobs:
           git commit -s -v --no-edit -m "$(cat $commit_message)"
           git log -n2
 
-          # TODO: Get rid of any merge commit in the patch
-          # TODO: process each commit one at a time in a loop: foreach or iterate
-
       - name: Submit the change to Gerrit repository
         id: submit
         if: env.PR_NUMBER != ''
@@ -204,7 +252,6 @@ jobs:
         # yamllint disable rule:line-length
         run: |
           set -x
-          cd "$GITHUB_WORKSPACE/${{ env.PROJECT_REPO_GITHUB }}-${{ env.GERRIT_BRANCH }}"
 
           reviewers_emails_list="${{ inputs.REVIEWERS_EMAIL }}"
           # If the reviewers email is unset/empty then use a default
@@ -229,7 +276,7 @@ jobs:
           set -x
 
           # Query for a pre-existing gerrit review to retrive Change-Id
-          ssh -v -p 29418 "${{ inputs.GERRIT_SSH_USER_G2G }}@${{ inputs.GERRIT_SERVER }}" \
+          ssh -v -p 29418 "${{ inputs.GERRIT_SSH_USER_G2G }}@${{ env.GERRIT_SERVER }}" \
                   gerrit query limit:1 owner:self is:open \
                   project:"${{ env.PROJECT_REPO_GERRIT }}" \
                   --current-patch-set --format=JSON \
@@ -249,7 +296,7 @@ jobs:
           retries: 3
           retry-exempt-status-codes: 400,401
           script: |
-            const output = `The pull-request PR-${{ env.PR_NUMBER }} is submitted to Gerrit [${{ vars.ORGANIZATION }}](https://${{ inputs.GERRIT_SERVER }})! \n
+            const output = `The pull-request PR-${{ env.PR_NUMBER }} is submitted to Gerrit [${{ vars.ORGANIZATION }}](https://${{ env.GERRIT_SERVER }})! \n
               To follow up on the change visit: [${{ env.GERRIT_CHANGE_REQUEST_NUMBER }}](${{ env.GERRIT_CHANGE_REQUEST_URL }}) \n \n
               NOTE: The pull-request PR-${{ env.PR_NUMBER }} will be closed, re-opening the pull-request will not update the same commit and may result in duplicate changes on Gerrit.`
             github.rest.issues.createComment({
@@ -265,7 +312,6 @@ jobs:
         # yamllint disable rule:line-length
         run: |
           set -x
-          cd "$GITHUB_WORKSPACE/${{ env.PROJECT_REPO_GITHUB }}-${{ env.GERRIT_BRANCH }}"
           gh pr close --comment "Auto-closing pull request" --delete-branch "${{ env.PR_NUMBER }}"
         env:
           GH_TOKEN: ${{ github.token }}

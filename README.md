@@ -1,15 +1,17 @@
-# github2gerrit github action
+# github2gerrit action
 
-This action extracts the commits from a GitHub pull request and submits them to an upstream Gerrit repository. It allows GitHub developers to contribute to Gerrit-based repositories that are primarily developed on Gerrit servers and replicated onto GitHub.
+The action extracts the commits from a GitHub pull-request and submits them to an upstream Gerrit repository. This allows GitHub developers to contribute to Gerrit-based repositories that are primarily maintained on Gerrit servers and replicated onto GitHub.
 
 ## Pre-requisites
 
-1. GitHub replication is set up on the Gerrit repository over SSH. Refer to the [Gerrit replication configuration setup guide](https://docs.releng.linuxfoundation.org/en/latest/infra/gerrit.html) maintained by the Linux Foundation release engineering team.
+1. GitHub replication is set up on the Gerrit repository over SSH. Refer to the [Gerrit replication configuration setup guide](https://docs.releng.linuxfoundation.org/en/latest/infra/gerrit.html) maintained by the Linux Foundation release engineering team. This also requires creating ssh-keypair
+and [registering the SSH keys](https://docs.releng.linuxfoundation.org/en/latest/gerrit.html#register-key-gerrit) with Gerrit.  
 2. Create a user account on GitHub with permissions to submit changes to Gerrit and ensure it is added to the GitHub organization or repository as a member.
+3. Use a [.gitreview](https://docs.opendev.org/opendev/git-review/latest/installation.html#gitreview-file-format) file point to the Gerrit server and repository. If this not alternatively pass the GERRIT_SERVER or GERRIT_PROJECT as inputs to the workflow.
 
 ## How the Action Works
 
-The action and workflow are written in Bash scripting, Git, and git-review.
+The action and workflow are written with bash scripts using well known Git SCM tools, gh, jq and git-review.
 
 1. The action is triggered when a new pull request is created on a GitHub repository configured with the action.
 2. Squash all the commits in the pull request into a single commit.
@@ -25,15 +27,17 @@ The action and workflow are written in Bash scripting, Git, and git-review.
 ## Required Inputs
 
 - `GERRIT_KNOWN_HOSTS`: Known host of the Gerrit repository.
-- `GERRIT_PROJECT`: Gerrit project repository.
-- `GERRIT_SERVER`: Gerrit server FQDN.
 - `GERRIT_SSH_PRIVKEY_G2G`: SSH private key pair (The private key has to be added to the Gerrit user's account settings. Gerrit -> User Settings).
 - `GERRIT_SSH_USER_G2G`: Gerrit server username (Required to connect to Gerrit).
 - `GERRIT_SSH_USER_G2G_EMAIL`: Email of the Gerrit user.
 
 ## Optional Inputs
 
-- `ORGANIZATION`: The GitHub organization or project.
+- `FETCH_DEPTH`: fetch-depth of the clone repo. (Default: 10)
+- `GERRIT_PROJECT`: Gerrit project repository (Default read from .gitreview).
+- `GERRIT_SERVER`: Gerrit server FQDN (Default read from .gitreview).
+- `GERRIT_SERVER_PORT`: Gerrit server port (Default: 29418)
+- `ORGANIZATION`: The GitHub Organization or Project.
 - `REVIEWER_EMAIL`: Committers' email list (comma-separated list without spaces).
 
 ## Full Example Usage with Composite Action
@@ -69,9 +73,10 @@ jobs:
         id: gerrit-upload
         uses: askb/github2gerrit@main
         with:
+          FETCH_DEPTH: 10
           GERRIT_KNOWN_HOSTS: ${{ vars.GERRIT_KNOWN_HOSTS }}
-          GERRIT_PROJECT: ${{ vars.GERRIT_PROJECT }}
           GERRIT_SERVER: ${{ vars.GERRIT_SERVER }}
+          GERRIT_SERVER_PORT: "29418"
           GERRIT_SSH_PRIVKEY_G2G: ${{ secrets.GERRIT_SSH_PRIVKEY_G2G }}
           GERRIT_SSH_USER_G2G: ${{ vars.GERRIT_SSH_USER_G2G }}
           GERRIT_SSH_USER_G2G_EMAIL: ${{ vars.GERRIT_SSH_USER_G2G_EMAIL }}
@@ -118,8 +123,6 @@ jobs:
     uses: askb/github2gerrit/.github/workflows/github2gerrit.yaml@main
     with:
       GERRIT_KNOWN_HOSTS: ${{ vars.GERRIT_KNOWN_HOSTS }}
-      GERRIT_PROJECT: ${{ vars.GERRIT_PROJECT }}
-      GERRIT_SERVER: ${{ vars.GERRIT_SERVER }}
       GERRIT_SSH_USER_G2G: ${{ vars.GERRIT_SSH_USER_G2G }}
       GERRIT_SSH_USER_G2G_EMAIL: ${{ vars.GERRIT_SSH_USER_G2G_EMAIL }}
       ORGANIZATION: ${{ vars.ORGANIZATION }}
