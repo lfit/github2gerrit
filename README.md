@@ -5,7 +5,7 @@ The action extracts the commits from a GitHub pull-request and submits them to a
 ## Pre-requisites
 
 1. GitHub replication is set up on the Gerrit repository over SSH. Refer to the [Gerrit replication configuration setup guide](https://docs.releng.linuxfoundation.org/en/latest/infra/gerrit.html) maintained by the Linux Foundation release engineering team. This also requires creating ssh-keypair
-and [registering the SSH keys](https://docs.releng.linuxfoundation.org/en/latest/gerrit.html#register-key-gerrit) with Gerrit.  
+   and [registering the SSH keys](https://docs.releng.linuxfoundation.org/en/latest/gerrit.html#register-key-gerrit) with Gerrit.
 2. Create a user account on GitHub with permissions to submit changes to Gerrit and ensure it is added to the GitHub organization or repository as a member.
 3. Use a [.gitreview](https://docs.opendev.org/opendev/git-review/latest/installation.html#gitreview-file-format) file point to the Gerrit server and repository. If this not alternatively pass the GERRIT_SERVER or GERRIT_PROJECT as inputs to the workflow.
 
@@ -21,24 +21,24 @@ The action and workflow are written with bash scripts using well known Git SCM t
 
 ## Caveats - Future Improvements
 
-- Commits in a pull request are squashed into a single commit before submitting the change request to Gerrit.
-- Code review comments on Gerrit will not be updated back on the pull request, requiring developers to follow up on the Gerrit change request URL.
+-   Commits in a pull request are squashed into a single commit before submitting the change request to Gerrit.
+-   Code review comments on Gerrit will not be updated back on the pull request, requiring developers to follow up on the Gerrit change request URL.
 
 ## Required Inputs
 
-- `GERRIT_KNOWN_HOSTS`: Known host of the Gerrit repository.
-- `GERRIT_SSH_PRIVKEY_G2G`: SSH private key pair (The private key has to be added to the Gerrit user's account settings. Gerrit -> User Settings).
-- `GERRIT_SSH_USER_G2G`: Gerrit server username (Required to connect to Gerrit).
-- `GERRIT_SSH_USER_G2G_EMAIL`: Email of the Gerrit user.
+-   `GERRIT_KNOWN_HOSTS`: Known host of the Gerrit repository.
+-   `GERRIT_SSH_PRIVKEY_G2G`: SSH private key pair (The private key has to be added to the Gerrit user's account settings. Gerrit -> User Settings).
+-   `GERRIT_SSH_USER_G2G`: Gerrit server username (Required to connect to Gerrit).
+-   `GERRIT_SSH_USER_G2G_EMAIL`: Email of the Gerrit user.
 
 ## Optional Inputs
 
-- `FETCH_DEPTH`: fetch-depth of the clone repo. (Default: 10)
-- `GERRIT_PROJECT`: Gerrit project repository (Default read from .gitreview).
-- `GERRIT_SERVER`: Gerrit server FQDN (Default read from .gitreview).
-- `GERRIT_SERVER_PORT`: Gerrit server port (Default: 29418)
-- `ORGANIZATION`: The GitHub Organization or Project.
-- `REVIEWER_EMAIL`: Committers' email list (comma-separated list without spaces).
+-   `FETCH_DEPTH`: fetch-depth of the clone repo. (Default: 10)
+-   `GERRIT_PROJECT`: Gerrit project repository (Default read from .gitreview).
+-   `GERRIT_SERVER`: Gerrit server FQDN (Default read from .gitreview).
+-   `GERRIT_SERVER_PORT`: Gerrit server port (Default: 29418)
+-   `ORGANIZATION`: The GitHub Organization or Project.
+-   `REVIEWER_EMAIL`: Committers' email list (comma-separated list without spaces).
 
 ## Full Example Usage with Composite Action
 
@@ -53,41 +53,40 @@ name: call-github2gerrit-composite-action
 
 # yamllint disable-line rule:truthy
 on:
-  pull_request_target:
-    types: [opened, reopened, edited, synchronize]
-    branches:
-      - master
-      - main
+    pull_request_target:
+        types: [opened, reopened, edited, synchronize]
+        branches:
+            - master
+            - main
 
 jobs:
-  call-in-g2g-workflow:
-    permissions:
-      contents: read
-      pull-requests: write
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-      - name: "Call the askb/github2gerrit composite action"
-        id: gerrit-upload
-        uses: askb/github2gerrit@main
-        with:
-          FETCH_DEPTH: 10
-          GERRIT_KNOWN_HOSTS: ${{ vars.GERRIT_KNOWN_HOSTS }}
-          GERRIT_SERVER: ${{ vars.GERRIT_SERVER }}
-          GERRIT_SERVER_PORT: "29418"
-          GERRIT_SSH_PRIVKEY_G2G: ${{ secrets.GERRIT_SSH_PRIVKEY_G2G }}
-          GERRIT_SSH_USER_G2G: ${{ vars.GERRIT_SSH_USER_G2G }}
-          GERRIT_SSH_USER_G2G_EMAIL: ${{ vars.GERRIT_SSH_USER_G2G_EMAIL }}
-          ORGANIZATION: ${{ vars.ORGANIZATION }}
+    call-in-g2g-workflow:
+        permissions:
+            contents: read
+            pull-requests: write
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  token: ${{ secrets.GITHUB_TOKEN }}
+            - name: "Call the lfit/github2gerrit composite action"
+              id: gerrit-upload
+              uses: lfit/github2gerrit@main
+              with:
+                  FETCH_DEPTH: 10
+                  GERRIT_KNOWN_HOSTS: ${{ vars.GERRIT_KNOWN_HOSTS }}
+                  GERRIT_SERVER: ${{ vars.GERRIT_SERVER }}
+                  GERRIT_SERVER_PORT: "29418"
+                  GERRIT_SSH_PRIVKEY_G2G: ${{ secrets.GERRIT_SSH_PRIVKEY_G2G }}
+                  GERRIT_SSH_USER_G2G: ${{ vars.GERRIT_SSH_USER_G2G }}
+                  GERRIT_SSH_USER_G2G_EMAIL: ${{ vars.GERRIT_SSH_USER_G2G_EMAIL }}
+                  ORGANIZATION: ${{ vars.ORGANIZATION }}
 
-      - name: "Output change-number and change URL"
-        shell: bash
-        run: |
-          echo "Change URL: ${{ steps.change_num.outputs.GERRIT_CHANGE_REQUEST_URL }}"
-          echo "Change number: ${{ steps.change_num.outputs.GERRIT_CHANGE_REQUEST_NUMBER }}"
-
+            - name: "Output change-number and change URL"
+              shell: bash
+              run: |
+                  echo "Change URL: ${{ steps.change_num.outputs.GERRIT_CHANGE_REQUEST_URL }}"
+                  echo "Change number: ${{ steps.change_num.outputs.GERRIT_CHANGE_REQUEST_NUMBER }}"
 ```
 
 ## Full Example usage with reusable workflow
@@ -103,32 +102,31 @@ name: call-github2gerrit-reusable-workflow
 
 # yamllint disable-line rule:truthy
 on:
-  workflow_dispatch:
-  pull_request_target:
-    types: [opened, reopened, edited, synchronize]
-    branches:
-      - master
-      - main
+    workflow_dispatch:
+    pull_request_target:
+        types: [opened, reopened, edited, synchronize]
+        branches:
+            - master
+            - main
 
 concurrency:
-  # yamllint disable-line rule:line-length
-  group: ${{ github.workflow }}-${{ github.run_id }}
-  cancel-in-progress: true
+    # yamllint disable-line rule:line-length
+    group: ${{ github.workflow }}-${{ github.run_id }}
+    cancel-in-progress: true
 
 jobs:
-  call-in-g2g-workflow:
-    permissions:
-      contents: read
-      pull-requests: write
-    uses: askb/github2gerrit/.github/workflows/github2gerrit.yaml@main
-    with:
-      GERRIT_KNOWN_HOSTS: ${{ vars.GERRIT_KNOWN_HOSTS }}
-      GERRIT_SSH_USER_G2G: ${{ vars.GERRIT_SSH_USER_G2G }}
-      GERRIT_SSH_USER_G2G_EMAIL: ${{ vars.GERRIT_SSH_USER_G2G_EMAIL }}
-      ORGANIZATION: ${{ vars.ORGANIZATION }}
-    secrets:
-      GERRIT_SSH_PRIVKEY_G2G: ${{ secrets.GERRIT_SSH_PRIVKEY_G2G }}
-
+    call-in-g2g-workflow:
+        permissions:
+            contents: read
+            pull-requests: write
+        uses: lfit/github2gerrit/.github/workflows/github2gerrit.yaml@main
+        with:
+            GERRIT_KNOWN_HOSTS: ${{ vars.GERRIT_KNOWN_HOSTS }}
+            GERRIT_SSH_USER_G2G: ${{ vars.GERRIT_SSH_USER_G2G }}
+            GERRIT_SSH_USER_G2G_EMAIL: ${{ vars.GERRIT_SSH_USER_G2G_EMAIL }}
+            ORGANIZATION: ${{ vars.ORGANIZATION }}
+        secrets:
+            GERRIT_SSH_PRIVKEY_G2G: ${{ secrets.GERRIT_SSH_PRIVKEY_G2G }}
 ```
 
 ## Contributions

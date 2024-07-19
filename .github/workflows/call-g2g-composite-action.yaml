@@ -24,9 +24,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-      - name: "Call the askb/github2gerrit composite action"
+      - name: "Call the lfit/github2gerrit composite action"
         id: gerrit-upload
-        uses: askb/github2gerrit@main
+        uses: lfit/github2gerrit@main
         with:
           FETCH_DEPTH: 10
           GERRIT_KNOWN_HOSTS: ${{ vars.GERRIT_KNOWN_HOSTS }}
