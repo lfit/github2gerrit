@@ -28,6 +28,7 @@ jobs:
         id: gerrit-upload
         uses: lfit/github2gerrit@main
         with:
+          USE_PR_AS_COMMIT: false
           FETCH_DEPTH: 10
           GERRIT_KNOWN_HOSTS: ${{ vars.GERRIT_KNOWN_HOSTS }}
           GERRIT_SERVER: ${{ vars.GERRIT_SERVER }}

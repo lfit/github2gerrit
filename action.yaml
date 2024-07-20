@@ -6,6 +6,10 @@ name: github2gerrit-composite-action
 description: "Submit a Githib pull-request to Gerrit repository"
 
 inputs:
+  USE_PR_AS_COMMIT:
+    description: "Use PR body and tittle as commit message"
+    required: false
+    type: boolean
   FETCH_DEPTH:
     description: "fetch-depth for the clone."
     required: true
@@ -240,6 +244,33 @@ runs:
         git commit -s -v --no-edit -m "$(cat $commit_message)"
         git log -n2
 
+    - name: Overwrite commit message with PR tittle and body
+      if: ${{ (github.event_name == 'pull_request_target') && (env.PR_COMMITS > 0) && (inputs.USE_PR_AS_COMMIT == true) }}
+      shell: bash
+      # yamllint disable rule:line-length
+      run: |
+        set -x
+
+        pr_tittle_length="$(gh pr view ${{ env.PR_NUMBER }} --json title | jq '.[] | length')"
+        pr_body_length="$(gh pr view ${{ env.PR_NUMBER }} --json body | jq '.[] | length')"
+
+        gh pr view ${{ env.PR_NUMBER }} --json title | jq -r '.title | select( . != null )' > pr_title.txt
+        # add blank line between title and body
+        echo "" >> pr_title.txt
+        gh pr view ${{ env.PR_NUMBER }} --json body | jq -r '.body | select( . != null )' >> pr_body.txt
+
+        # Note: its upto the dev to ensure the 50/72 rule
+        cat pr_title.txt pr_body.txt > pr_commit.txt
+        echo "" >> pr_commit.txt
+        cat signed-off-by-final.txt >> pr_commit.txt
+
+        if [[ -f pr_commit.txt ]] && [[ ($pr_body_length -gt 0) ]] && [[ ($pr_tittle_length -gt 0) ]]; then
+            git commit -s -v --amend --no-edit -F "pr_commit.txt"
+            git log -n2
+        fi
+      env:
+        GH_TOKEN: ${{ github.token }}
+
     - name: Submit the change to Gerrit repository
       id: submit
       if: env.PR_NUMBER != ''
@@ -252,8 +283,9 @@ runs:
         # If the reviewers email is unset/empty then use a default
         reviewers=${reviewers_emails_list:-"${{ inputs.GERRIT_SSH_USER_G2G_EMAIL }}"}
 
+        topic="GH-${{ env.PROJECT_REPO_GITHUB }}-${{ env.PR_NUMBER }}"
         echo "git review .... inprogress"
-        git review --yes -t "GH-PR-${{ env.PR_NUMBER }}" --reviewers "$reviewers"
+        git review --yes -t "$topic" --reviewers "$reviewers"
 
         # retrive change-id from the submitted PR
         gerrit_change_id=$(git show HEAD --format=%B -s | grep Change-Id: | cut -d " " -f2;)
@@ -279,11 +311,28 @@ runs:
 
         query_result_url=$(jq -r '.url | select( . != null )' query_result.txt)
         query_result_number=$(jq -r '.number | select( . != null )' query_result.txt)
+        query_result_commit_sha=$(jq  -r '.currentPatchSet.revision | select( . != null )' query_result.txt)
 
         echo "GERRIT_CHANGE_REQUEST_URL=${query_result_url}" >> "$GITHUB_ENV"
         echo "GERRIT_CHANGE_REQUEST_NUMBER=${query_result_number}" >> "$GITHUB_ENV"
-        echo "GERRIT_CHANGE_REQUEST_URL=${query_result_url}" >> "$GITHUB_OUTPUT"
-        echo "GERRIT_CHANGE_REQUEST_NUMBER=${query_result_number}" >> "$GITHUB_OUTPUT"
+        echo "GERRIT_COMMIT_SHA=${query_result_commit_sha}" >> "$GITHUB_ENV"
+
+    - name: Add source of Github PR URL as a gerrit comment
+      if: env.GERRIT_CHANGE_ID != ''
+      shell: bash
+      # yamllint disable rule:line-length
+      run: |
+        set -x
+
+        run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        pr_path="${{ github.server_url }}/${{ github.repository }}/pull/${{ env.PR_NUMBER }}"
+        message="$(printf 'GHPR: %s\nAction-Run: %s\n' "${pr_path}" "${run_url}")"
+
+        # Add a comment on the change was create from Github.
+        ssh -v -p 29418 "${{ inputs.GERRIT_SSH_USER_G2G }}@${{ env.GERRIT_SERVER }}" \
+                gerrit review -m "'""${message}""'" \
+                --branch ${{ env.GERRIT_BRANCH }} --project "${{ env.PROJECT_REPO_GERRIT }}" \
+                "${{ env.GERRIT_COMMIT_SHA }}"
 
     - name: PR Comment update CR number
       if: env.GERRIT_CHANGE_REQUEST_URL != ''

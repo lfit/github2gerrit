@@ -17,11 +17,22 @@ The action and workflow are written with bash scripts using well known Git SCM t
 2. Squash all the commits in the pull request into a single commit.
 3. Check for a Change-Id line in the pull request commit message. If it is not present, add the Change-Id to the commit. If the Change-Id is found in any of the commits, it will be reused along with the patch.
 4. Create a Gerrit patch with the Change-Id, squashing all PR changes into a single commit.
-5. Close the pull request once the Gerrit patch is submitted. A comment is added to the pull request with the URL to the change. Any updates will require the pull request to be reopened. Updates to the pull request are done with a force push, which triggers the workflows to ensure the change is resubmitted.
+5. Add a pull-request reference as a comment on the Gerrit change for committers or reviewers to refer to the source of change request.
+6. Close the pull request once the Gerrit patch is submitted. A comment is added to the pull request with the URL to the change. Any updates will require the pull request to be reopened. Updates to the pull request are done with a force push, which triggers the workflows to ensure the change is resubmitted.
+
+## Features
+
+### Use pull-request a commit message
+
+-   Commits in a pull request are squashed into a single commit before submitting the change request to Gerrit.
+
+### Use pull-request a commit message
+
+-   Set the commit message as pull request body and title along with the change-Id and Signed-off-by lines. Commit message are squashed and the commit body and tittle are discarded.
 
 ## Caveats - Future Improvements
 
--   Commits in a pull request are squashed into a single commit before submitting the change request to Gerrit.
+-   Commits in a pull request are submitted as independent change requests to Gerrit under the same topic.
 -   Code review comments on Gerrit will not be updated back on the pull request, requiring developers to follow up on the Gerrit change request URL.
 
 ## Required Inputs
@@ -33,6 +44,7 @@ The action and workflow are written with bash scripts using well known Git SCM t
 
 ## Optional Inputs
 
+-   `USE_PR_AS_COMMIT`: Use commit body and tittle from pull-request (Default: false)
 -   `FETCH_DEPTH`: fetch-depth of the clone repo. (Default: 10)
 -   `GERRIT_PROJECT`: Gerrit project repository (Default read from .gitreview).
 -   `GERRIT_SERVER`: Gerrit server FQDN (Default read from .gitreview).
