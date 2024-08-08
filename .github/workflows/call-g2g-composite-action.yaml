@@ -28,10 +28,8 @@ jobs:
         id: gerrit-upload
         uses: lfit/github2gerrit@main
         with:
-          FETCH_DEPTH: 10
-          GERRIT_KNOWN_HOSTS: ${{ vars.GERRIT_KNOWN_HOSTS }}
-          GERRIT_SERVER: ${{ vars.GERRIT_SERVER }}
-          GERRIT_SERVER_PORT: "29418"
+          SUBMIT_SINGLE_COMMITS: "true"
+          USE_PR_AS_COMMIT: "false"
           GERRIT_SSH_PRIVKEY_G2G: ${{ secrets.GERRIT_SSH_PRIVKEY_G2G }}
           GERRIT_SSH_USER_G2G: ${{ vars.GERRIT_SSH_USER_G2G }}
           GERRIT_SSH_USER_G2G_EMAIL: ${{ vars.GERRIT_SSH_USER_G2G_EMAIL }}
