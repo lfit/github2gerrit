@@ -14,15 +14,41 @@ The action extracts the commits from a GitHub pull-request and submits them to a
 The action and workflow are written with bash scripts using well known Git SCM tools, gh, jq and git-review.
 
 1. The action is triggered when a new pull request is created on a GitHub repository configured with the action.
-2. Squash all the commits in the pull request into a single commit.
+2. One of the below options can be used depending on the workflow followed by the community.
+
+-   Squash all the commits in the pull request into a single commit and use consolidate the commit titles and body into a single commit (Default).
+-   Squash all the commits in the pull request into a single commit and using the pull request title and body as the commit title and body (USE_PR_AS_COMMIT).
+-   Submit each commit as a separate single commit preserving the git history (SUBMIT_SINGLE_COMMITS).
+
 3. Check for a Change-Id line in the pull request commit message. If it is not present, add the Change-Id to the commit. If the Change-Id is found in any of the commits, it will be reused along with the patch.
-4. Create a Gerrit patch with the Change-Id, squashing all PR changes into a single commit.
-5. Close the pull request once the Gerrit patch is submitted. A comment is added to the pull request with the URL to the change. Any updates will require the pull request to be reopened. Updates to the pull request are done with a force push, which triggers the workflows to ensure the change is resubmitted.
+4. Add the Change-Id (and optionally squash changes into a single commit if required).
+5. Add a pull-request and workflow run reference link as a comment on the Gerrit change that was created for committers or reviewers to back reference to the source of change request.
+6. Add a comment to the pull request with the URL to the change. Any updates will require the pull request to be reopened and updates to the pull request must be done with a force push, which triggers the workflows to ensure the change is resubmitted.
+7. Close the pull request once the Gerrit patch is submitted successfully.
+
+## Features
+
+### Use pull-request as a single squashed commit message
+
+-   Commits in a pull request are squashed into a single commit before submitting the change request to Gerrit. This is the default behavior shown in the caller workflow examples.
+-   Merge commits get filtered out.
+-   Here `inputs.SUBMIT_SINGLE_COMMITS` is set to 'false' by default.
+
+### Use pull-request body and title in the commit message
+
+-   The commit message title and body is extracted from the pull request body and title along with the change-Id and Signed-off-by lines. Commits are still squashed and while only the commit body and title are discarded.
+-   Requires setting `inputs.USE_PR_AS_COMMIT` to 'true'.
+-   This option is exclusive with `inputs.SUBMIT_SINGLE_COMMITS` and cannot be used together.
+
+### Submit each commit as a separate single commit
+
+-   Each commit in the pull request are processed individually as a single commit before submitting to Gerrit repository. This option allows you to preserve git history.
+-   Requires `inputs.SUBMIT_SINGLE_COMMITS` to be set to 'true' in the caller.
 
 ## Caveats - Future Improvements
 
--   Commits in a pull request are squashed into a single commit before submitting the change request to Gerrit.
--   Code review comments on Gerrit will not be updated back on the pull request, requiring developers to follow up on the Gerrit change request URL.
+-   `inputs.SUBMIT_SINGLE_COMMITS` has not be tested extensively for handling large pull requests.
+-   Code review comments on Gerrit are not synchronized back to the pull request comment, therefore requires developers to follow up on the Gerrit change request URL. Rework through the recommended changes can be done by reopening the pull request and updating to the commits through a force push.
 
 ## Required Inputs
 
@@ -33,6 +59,8 @@ The action and workflow are written with bash scripts using well known Git SCM t
 
 ## Optional Inputs
 
+-   `SUBMIT_SINGLE_COMMITS`: Submit one commit at a time to the Gerrit repository (Default: false)
+-   `USE_PR_AS_COMMIT`: Use commit body and title from pull-request (Default: false)
 -   `FETCH_DEPTH`: fetch-depth of the clone repo. (Default: 10)
 -   `GERRIT_PROJECT`: Gerrit project repository (Default read from .gitreview).
 -   `GERRIT_SERVER`: Gerrit server FQDN (Default read from .gitreview).
@@ -43,6 +71,7 @@ The action and workflow are written with bash scripts using well known Git SCM t
 ## Full Example Usage with Composite Action
 
 Use the composite action as a step in the workflow for further processing.
+Example workflow does not enable `SUBMIT_SINGLE_COMMITS` and `USE_PR_AS_COMMIT`
 
 ```yaml
 ---
@@ -73,10 +102,10 @@ jobs:
               id: gerrit-upload
               uses: lfit/github2gerrit@main
               with:
+                  SUBMIT_SINGLE_COMMITS: "false"
+                  USE_PR_AS_COMMIT: "false"
                   FETCH_DEPTH: 10
                   GERRIT_KNOWN_HOSTS: ${{ vars.GERRIT_KNOWN_HOSTS }}
-                  GERRIT_SERVER: ${{ vars.GERRIT_SERVER }}
-                  GERRIT_SERVER_PORT: "29418"
                   GERRIT_SSH_PRIVKEY_G2G: ${{ secrets.GERRIT_SSH_PRIVKEY_G2G }}
                   GERRIT_SSH_USER_G2G: ${{ vars.GERRIT_SSH_USER_G2G }}
                   GERRIT_SSH_USER_G2G_EMAIL: ${{ vars.GERRIT_SSH_USER_G2G_EMAIL }}

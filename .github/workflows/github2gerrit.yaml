@@ -7,6 +7,16 @@ name: github2gerrit-reusable-workflow
 on:
   workflow_call:
     inputs:
+      SUBMIT_SINGLE_COMMITS:
+        description: "Submit one commit at a time to the Gerrit repository"
+        required: false
+        default: false
+        type: boolean
+      USE_PR_AS_COMMIT:
+        description: "Use PR body and tittle as commit message"
+        required: false
+        default: false
+        type: boolean
       FETCH_DEPTH:
         description: "fetch-depth for the clone. (Default: 10)"
         required: false
@@ -67,6 +77,14 @@ jobs:
         id: setup-python
         with:
           python-version: "3.11"
+
+      - name: Validate workflow inputs
+        if: ${{ (inputs.USE_PR_AS_COMMIT == true) && (inputs.SUBMIT_SINGLE_COMMITS == true) }}
+        shell: bash
+        # yamllint disable rule:line-length
+        run: |
+          echo "Error: USE_PR_AS_COMMIT and SUBMIT_SINGLE_COMMITS cannot be enabled at the same time"
+          exit 1
 
       - name: "Install required dependencies: git-review,jq"
         shell: bash
@@ -207,9 +225,37 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
+      - name: Prepare commits to submit one at a time
+        shell: bash
+        if: ${{ (env.PR_COMMITS > 0) && (inputs.SUBMIT_SINGLE_COMMITS == true) }}
+        # yamllint disable rule:line-length
+        run: |
+          set -x
+          commit_shas=$(gh pr view ${{ env.PR_NUMBER }} --json commits --jq '.commits[] | .oid')
+          git checkout -b tmp_branch ${{ github.event.pull_request.base.sha }}
+
+          # Cherry-pick the commits into diff branch and amend to add change-Id
+          for csha in ${commit_shas}; do
+              git checkout tmp_branch
+              git cherry-pick "${csha}"
+              git commit -s -v --no-edit --amend
+              change_id="$(git log --format="%(trailers:key=Change-Id,valueonly,separator=%x2C)" -n1)"
+              if [ -n "${change_id}" ]; then
+                  # Capture the newly created change-Id
+                  echo "$change_id" >> change-Id.txt
+              else
+                  echo "FAIL: Change-Id not created, exit job!"
+                  exit 1
+              fi
+              git checkout ${{ env.GERRIT_BRANCH }}
+          done
+          git log -n3
+        env:
+          GH_TOKEN: ${{ github.token }}
+
       - name: Squash commits into a single commit
         shell: bash
-        if: ${{ (env.PR_COMMITS > 0) }}
+        if: ${{ (env.PR_COMMITS > 0) && (inputs.SUBMIT_SINGLE_COMMITS == false) }}
         # yamllint disable rule:line-length
         run: |
           set -x
@@ -245,6 +291,33 @@ jobs:
           git commit -s -v --no-edit -m "$(cat $commit_message)"
           git log -n2
 
+      - name: Overwrite commit message with PR tittle and body
+        if: ${{ (github.event_name == 'pull_request_target') && (env.PR_COMMITS > 0) && (inputs.USE_PR_AS_COMMIT == true) && (inputs.SUBMIT_SINGLE_COMMITS == false) }}
+        shell: bash
+        # yamllint disable rule:line-length
+        run: |
+          set -x
+
+          pr_tittle_length="$(gh pr view ${{ env.PR_NUMBER }} --json title | jq '.[] | length')"
+          pr_body_length="$(gh pr view ${{ env.PR_NUMBER }} --json body | jq '.[] | length')"
+
+          gh pr view ${{ env.PR_NUMBER }} --json title | jq -r '.title | select( . != null )' > pr_title.txt
+          # add blank line between title and body
+          echo "" >> pr_title.txt
+          gh pr view ${{ env.PR_NUMBER }} --json body | jq -r '.body | select( . != null )' >> pr_body.txt
+
+          # Note: its upto the dev to ensure the 50/72 rule
+          cat pr_title.txt pr_body.txt > pr_commit.txt
+          echo "" >> pr_commit.txt
+          cat signed-off-by-final.txt >> pr_commit.txt
+
+          if [[ -f pr_commit.txt ]] && [[ ($pr_body_length -gt 0) ]] && [[ ($pr_tittle_length -gt 0) ]]; then
+              git commit -s -v --amend --no-edit -F "pr_commit.txt"
+              git log -n2
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
       - name: Submit the change to Gerrit repository
         id: submit
         if: env.PR_NUMBER != ''
@@ -253,51 +326,112 @@ jobs:
         run: |
           set -x
 
+          if ${{ inputs.SUBMIT_SINGLE_COMMITS == true }}; then
+              git checkout tmp_branch
+          fi
+
           reviewers_emails_list="${{ inputs.REVIEWERS_EMAIL }}"
           # If the reviewers email is unset/empty then use a default
           reviewers=${reviewers_emails_list:-"${{ inputs.GERRIT_SSH_USER_G2G_EMAIL }}"}
 
+          topic="GH-${{ env.PROJECT_REPO_GITHUB }}-${{ env.PR_NUMBER }}"
           echo "git review .... inprogress"
-          git review --yes -t "GH-PR-${{ env.PR_NUMBER }}" --reviewers "$reviewers"
+          git review --yes -t "$topic" --reviewers "$reviewers"
 
-          # retrive change-id from the submitted PR
-          gerrit_change_id=$(git show HEAD --format=%B -s | grep Change-Id: | cut -d " " -f2;)
-
-          if [[ "$gerrit_change_id" != '' ]]; then
-              echo "GERRIT_CHANGE_ID=${gerrit_change_id}" >> "$GITHUB_ENV"
-          fi
-
-      - name: Retrive the Gerrit change number from Change-ID
-        if: env.GERRIT_CHANGE_ID != ''
+      - name: Validate Change-ID and retrive the Gerrit change number
         id: change_num
         shell: bash
         # yamllint disable rule:line-length
         run: |
           set -x
 
-          # Query for a pre-existing gerrit review to retrive Change-Id
-          ssh -v -p 29418 "${{ inputs.GERRIT_SSH_USER_G2G }}@${{ env.GERRIT_SERVER }}" \
-                  gerrit query limit:1 owner:self is:open \
-                  project:"${{ env.PROJECT_REPO_GERRIT }}" \
-                  --current-patch-set --format=JSON \
-                  "${{ env.GERRIT_CHANGE_ID }}" > query_result.txt
+          if [[ ! -s change-Id.txt ]]; then
+              # retrive change-id from the submitted PR
+              gerrit_change_id=$(git show HEAD --format=%B -s | grep Change-Id: | cut -d " " -f2;)
+              if [[ "$gerrit_change_id" == '' ]]; then
+                  echo "GERRIT_CHANGE_ID: null"; exit 1
+              fi
+              echo "$gerrit_change_id" >> change-Id.txt
+          fi
 
-          query_result_url=$(jq -r '.url | select( . != null )' query_result.txt)
-          query_result_number=$(jq -r '.number | select( . != null )' query_result.txt)
+          if [[ -s change-Id.txt ]]; then
+              GERRIT_CHANGE_ID_VALUES="$(<change-Id.txt)"
+              {
+                echo 'GERRIT_CHANGE_ID<<EOF'
+                echo "${GERRIT_CHANGE_ID_VALUES}"
+                echo EOF
+              } >> "$GITHUB_ENV"
+          fi
 
-          echo "GERRIT_CHANGE_REQUEST_URL=${query_result_url}" >> "$GITHUB_ENV"
-          echo "GERRIT_CHANGE_REQUEST_NUMBER=${query_result_number}" >> "$GITHUB_ENV"
+          while IFS="" read -r cid; do
+              # Query for a pre-existing gerrit review to retrive Change-Id
+              ssh -v -n -p 29418 "${{ inputs.GERRIT_SSH_USER_G2G }}@${{ env.GERRIT_SERVER }}" \
+                      "gerrit query limit:1 owner:self is:open" \
+                      "project:${{ env.PROJECT_REPO_GERRIT }}" \
+                      --current-patch-set --format=JSON \
+                      "$cid" > query_result.txt
 
-      - name: PR Comment update CR number
-        if: env.GERRIT_CHANGE_REQUEST_URL != ''
+              query_result_url=$(jq -r '.url | select( . != null )' query_result.txt)
+              query_result_number=$(jq -r '.number | select( . != null )' query_result.txt)
+              query_result_commit_sha=$(jq  -r '.currentPatchSet.revision | select( . != null )' query_result.txt)
+
+              echo "${query_result_url}" >> change-url.txt
+              echo "${query_result_commit_sha}" >> commit-sha.txt
+              echo "${query_result_number}" >> change-request-number.txt
+          done < change-Id.txt
+
+          GERRIT_CHANGE_REQUEST_URL_VALUES="$(<change-url.txt)"
+          {
+            echo 'GERRIT_CHANGE_REQUEST_URL<<EOF'
+            echo "${GERRIT_CHANGE_REQUEST_URL_VALUES}"
+            echo EOF
+          } >> "$GITHUB_ENV"
+
+          GERRIT_COMMIT_SHA_VALUES="$(<commit-sha.txt)"
+          {
+            echo 'GERRIT_COMMIT_SHA<<EOF'
+            echo "${GERRIT_COMMIT_SHA_VALUES}"
+            echo EOF
+          } >> "$GITHUB_ENV"
+
+          GERRIT_CHANGE_REQUEST_NUM_VALUES="$(<change-request-number.txt)"
+          {
+            echo 'GERRIT_CHANGE_REQUEST_NUM<<EOF'
+            echo "${GERRIT_CHANGE_REQUEST_NUM_VALUES}"
+            echo EOF
+          } >> "$GITHUB_ENV"
+
+      - name: Add source of Github PR URL as a gerrit comment
+        if: env.GERRIT_CHANGE_ID != ''
+        shell: bash
+        # yamllint disable rule:line-length
+        run: |
+          set -x
+
+          run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          pr_path="${{ github.server_url }}/${{ github.repository }}/pull/${{ env.PR_NUMBER }}"
+          message="$(printf 'GHPR: %s\nAction-Run: %s\n' "${pr_path}" "${run_url}")"
+
+          # Add comment backref change request to Github PR and workflow job.
+          while IFS="" read -r csha; do
+              ssh -v -n -p 29418 "${{ inputs.GERRIT_SSH_USER_G2G }}@${{ env.GERRIT_SERVER }}" \
+                      gerrit review -m "'""${message}""'" \
+                      --branch ${{ env.GERRIT_BRANCH }} --project "${{ env.PROJECT_REPO_GERRIT }}" \
+                      "$csha"
+          done < commit-sha.txt
+
+      - name: Add comment to refrence the change-request on the pull-request
+        if: |
+          hashFiles('commit-sha.txt') != '' ||
+          (! startsWith(env.GERRIT_CHANGE_REQUEST_URL, ''))
         uses: actions/github-script@v7
         with:
           result-encoding: string
           retries: 3
           retry-exempt-status-codes: 400,401
           script: |
-            const output = `The pull-request PR-${{ env.PR_NUMBER }} is submitted to Gerrit [${{ vars.ORGANIZATION }}](https://${{ env.GERRIT_SERVER }})! \n
-              To follow up on the change visit: [${{ env.GERRIT_CHANGE_REQUEST_NUMBER }}](${{ env.GERRIT_CHANGE_REQUEST_URL }}) \n \n
+            const output = `The pull-request PR-${{ env.PR_NUMBER }} is submitted to Gerrit [${{ inputs.ORGANIZATION }}](https://${{ env.GERRIT_SERVER }})! \n
+              To follow up on the change visit: \n \n ${{ env.GERRIT_CHANGE_REQUEST_URL }} \n \n
               NOTE: The pull-request PR-${{ env.PR_NUMBER }} will be closed, re-opening the pull-request will not update the same commit and may result in duplicate changes on Gerrit.`
             github.rest.issues.createComment({
               issue_number: context.issue.number,
