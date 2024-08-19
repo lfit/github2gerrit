@@ -238,7 +238,8 @@ jobs:
           for csha in ${commit_shas}; do
               git checkout tmp_branch
               git cherry-pick "${csha}"
-              git commit -s -v --no-edit --amend
+              author=$(git show -s --pretty=format:"%an <%ae>" "${csha}")
+              git commit -s -v --no-edit --author "$author" --amend
               change_id="$(git log --format="%(trailers:key=Change-Id,valueonly,separator=%x2C)" -n1)"
               if [ -n "${change_id}" ]; then
                   # Capture the newly created change-Id
@@ -306,6 +307,12 @@ jobs:
           git log -v --format=%B --reverse "HEAD..HEAD@{1}" | grep -E "^(Signed-off-by)" > signed-off-by.txt || true
           git log -v --format=%B --reverse "HEAD..HEAD@{1}" | grep -Ev "^(Signed-off-by|Change-Id)" > commit-msg.txt
 
+          # capture author info
+          git show -s --pretty=format:"%an <%ae>" -n1 > author-info.txt
+          if [[ -s author-info.txt ]]; then
+              author="$(cat author-info.txt)"
+          fi
+
           if [[ -f commit-msg.txt ]]; then
               commit_message="${commit_message:-commit-msg.txt}"
           fi
@@ -328,7 +335,7 @@ jobs:
           fi
 
           # shellcheck disable=SC2086
-          git commit -s -v --no-edit -m "$(cat $commit_message)"
+          git commit -s -v --no-edit --author "$author" -m "$(cat $commit_message)"
           git log -n2
 
       - name: Overwrite commit message with PR tittle and body
@@ -351,8 +358,12 @@ jobs:
           echo "" >> pr_commit.txt
           cat signed-off-by-final.txt >> pr_commit.txt
 
+          if [[ -s author-info.txt ]]; then
+              author="$(cat author-info.txt)"
+          fi
+
           if [[ -f pr_commit.txt ]] && [[ ($pr_body_length -gt 0) ]] && [[ ($pr_tittle_length -gt 0) ]]; then
-              git commit -s -v --amend --no-edit -F "pr_commit.txt"
+              git commit -s -v --amend --author "$author" --no-edit -F "pr_commit.txt"
               git log -n2
           fi
         env:
