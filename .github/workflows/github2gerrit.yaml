@@ -238,7 +238,8 @@ jobs:
           for csha in ${commit_shas}; do
               git checkout tmp_branch
               git cherry-pick "${csha}"
-              git commit -s -v --no-edit --amend
+              author=$(git show -s --pretty=format:"%an <%ae>" "${csha}")
+              git commit -s -v --no-edit --author "$author" --amend
               change_id="$(git log --format="%(trailers:key=Change-Id,valueonly,separator=%x2C)" -n1)"
               if [ -n "${change_id}" ]; then
                   # Capture the newly created change-Id
@@ -250,6 +251,40 @@ jobs:
               git checkout ${{ env.GERRIT_BRANCH }}
           done
           git log -n3
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Fetch the change-Id when the pull_request was reopened
+        shell: bash
+        if: ${{ github.event_name == 'pull_request_target' && (github.event.action == 'reopened' || github.event.action == 'synchronize') && (env.PR_COMMITS > 0) && (inputs.SUBMIT_SINGLE_COMMITS == false) }}
+        # yamllint disable rule:line-length
+        run: |
+          set -x
+
+          gh api graphql --paginate \
+              -F number=${{ env.PR_NUMBER }} \
+              -F owner=${{ vars.ORGANIZATION }} \
+              -F name=${{ env.PROJECT_REPO_GITHUB }} \
+              -f query='query($name: String!, $owner: String!, $number: Int!) {
+              repository(owner: $owner, name: $name) {
+                pullRequest(number: $number ) {
+                  comments(last: 5) {
+                    nodes {
+                      body
+                      author {
+                        login
+                      }
+                    }
+                  }
+                }
+              }
+            }' | jq > "comments-${{ env.PR_NUMBER }}.txt"
+
+          # extract the Change-Id from the comments.
+          jq -r -c '.data.repository.pullRequest.comments.nodes[]
+              | select(.body | contains("Change-Id:"))
+              | .body | match("Change-Id: (?<id>[a-zA-Z0-9]+)").captures[0].string' \
+              "comments-${{ env.PR_NUMBER }}.txt" > "reuse-cids-${{ env.PR_NUMBER }}.txt"
         env:
           GH_TOKEN: ${{ github.token }}
 
@@ -272,23 +307,35 @@ jobs:
           git log -v --format=%B --reverse "HEAD..HEAD@{1}" | grep -E "^(Signed-off-by)" > signed-off-by.txt || true
           git log -v --format=%B --reverse "HEAD..HEAD@{1}" | grep -Ev "^(Signed-off-by|Change-Id)" > commit-msg.txt
 
-          if [[ -f commit-msg.txt ]]; then
-            commit_message="${commit_message:-commit-msg.txt}"
+          # capture author info
+          git show -s --pretty=format:"%an <%ae>" -n1 > author-info.txt
+          if [[ -s author-info.txt ]]; then
+              author="$(cat author-info.txt)"
           fi
 
-          if [[ -f change-Id.txt ]]; then
-            commit_message+=' '
-            commit_message+="change-Id.txt"
+          if [[ -f commit-msg.txt ]]; then
+              commit_message="${commit_message:-commit-msg.txt}"
+          fi
+
+          # overide the change-id if the change is update on Gerrit
+          if [[ -f "reuse-cids-${{ env.PR_NUMBER }}.txt" ]] && (${{ github.event.action == 'reopened' }} || ${{ github.event.action == 'synchronize' }}); then
+              reuse_cid="$(< "reuse-cids-${{ env.PR_NUMBER }}.txt" uniq | tail -1)"
+              echo "Change-Id: $reuse_cid" > change-Id.txt
+              commit_message+=' '
+              commit_message+="change-Id.txt"
+          elif [[ -f change-Id.txt ]]; then
+              commit_message+=' '
+              commit_message+="change-Id.txt"
           fi
 
           if [[ -f signed-off-by.txt ]]; then
-            sort -u signed-off-by.txt -o signed-off-by-final.txt
-            commit_message+=' '
-            commit_message+="signed-off-by-final.txt"
+              sort -u signed-off-by.txt -o signed-off-by-final.txt
+              commit_message+=' '
+              commit_message+="signed-off-by-final.txt"
           fi
 
           # shellcheck disable=SC2086
-          git commit -s -v --no-edit -m "$(cat $commit_message)"
+          git commit -s -v --no-edit --author "$author" -m "$(cat $commit_message)"
           git log -n2
 
       - name: Overwrite commit message with PR tittle and body
@@ -311,8 +358,12 @@ jobs:
           echo "" >> pr_commit.txt
           cat signed-off-by-final.txt >> pr_commit.txt
 
+          if [[ -s author-info.txt ]]; then
+              author="$(cat author-info.txt)"
+          fi
+
           if [[ -f pr_commit.txt ]] && [[ ($pr_body_length -gt 0) ]] && [[ ($pr_tittle_length -gt 0) ]]; then
-              git commit -s -v --amend --no-edit -F "pr_commit.txt"
+              git commit -s -v --amend --author "$author" --no-edit -F "pr_commit.txt"
               git log -n2
           fi
         env:
@@ -369,7 +420,7 @@ jobs:
                       "gerrit query limit:1 owner:self is:open" \
                       "project:${{ env.PROJECT_REPO_GERRIT }}" \
                       --current-patch-set --format=JSON \
-                      "$cid" > query_result.txt
+                      "${cid##* }" > query_result.txt
 
               query_result_url=$(jq -r '.url | select( . != null )' query_result.txt)
               query_result_number=$(jq -r '.number | select( . != null )' query_result.txt)
@@ -378,27 +429,35 @@ jobs:
               echo "${query_result_url}" >> change-url.txt
               echo "${query_result_commit_sha}" >> commit-sha.txt
               echo "${query_result_number}" >> change-request-number.txt
+              echo "[${cid}](${query_result_url})" >> cid-url.txt
           done < change-Id.txt
 
           GERRIT_CHANGE_REQUEST_URL_VALUES="$(<change-url.txt)"
           {
-            echo 'GERRIT_CHANGE_REQUEST_URL<<EOF'
-            echo "${GERRIT_CHANGE_REQUEST_URL_VALUES}"
-            echo EOF
+              echo 'GERRIT_CHANGE_REQUEST_URL<<EOF'
+              echo "${GERRIT_CHANGE_REQUEST_URL_VALUES}"
+              echo EOF
           } >> "$GITHUB_ENV"
 
           GERRIT_COMMIT_SHA_VALUES="$(<commit-sha.txt)"
           {
-            echo 'GERRIT_COMMIT_SHA<<EOF'
-            echo "${GERRIT_COMMIT_SHA_VALUES}"
-            echo EOF
+              echo 'GERRIT_COMMIT_SHA<<EOF'
+              echo "${GERRIT_COMMIT_SHA_VALUES}"
+              echo EOF
           } >> "$GITHUB_ENV"
 
           GERRIT_CHANGE_REQUEST_NUM_VALUES="$(<change-request-number.txt)"
           {
-            echo 'GERRIT_CHANGE_REQUEST_NUM<<EOF'
-            echo "${GERRIT_CHANGE_REQUEST_NUM_VALUES}"
-            echo EOF
+              echo 'GERRIT_CHANGE_REQUEST_NUM<<EOF'
+              echo "${GERRIT_CHANGE_REQUEST_NUM_VALUES}"
+              echo EOF
+          } >> "$GITHUB_ENV"
+
+          GERRIT_CR_URL_CID_VALUES="$(<cid-url.txt)"
+          {
+              echo 'GERRIT_CR_URL_CID<<EOF'
+              echo "${GERRIT_CR_URL_CID_VALUES}"
+              echo EOF
           } >> "$GITHUB_ENV"
 
       - name: Add source of Github PR URL as a gerrit comment
@@ -423,7 +482,7 @@ jobs:
       - name: Add comment to refrence the change-request on the pull-request
         if: |
           hashFiles('commit-sha.txt') != '' ||
-          (! startsWith(env.GERRIT_CHANGE_REQUEST_URL, ''))
+          (! startsWith(env.GERRIT_CR_URL_CID, ''))
         uses: actions/github-script@v7
         with:
           result-encoding: string
@@ -431,7 +490,7 @@ jobs:
           retry-exempt-status-codes: 400,401
           script: |
             const output = `The pull-request PR-${{ env.PR_NUMBER }} is submitted to Gerrit [${{ inputs.ORGANIZATION }}](https://${{ env.GERRIT_SERVER }})! \n
-              To follow up on the change visit: \n \n ${{ env.GERRIT_CHANGE_REQUEST_URL }} \n \n
+              To follow up on the change visit: \n \n ${{ env.GERRIT_CR_URL_CID }} \n \n
               NOTE: The pull-request PR-${{ env.PR_NUMBER }} will be closed, re-opening the pull-request will not update the same commit and may result in duplicate changes on Gerrit.`
             github.rest.issues.createComment({
               issue_number: context.issue.number,

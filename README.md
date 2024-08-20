@@ -33,6 +33,8 @@ The action and workflow are written with bash scripts using well known Git SCM t
 -   Commits in a pull request are squashed into a single commit before submitting the change request to Gerrit. This is the default behavior shown in the caller workflow examples.
 -   Merge commits get filtered out.
 -   Here `inputs.SUBMIT_SINGLE_COMMITS` is set to 'false' by default.
+-   When the commits are updated on Github and the pull request is reopend the "Change-id: <sha>"
+    is retried from the comment on the pull request if one exist. It's the developer responsibility to ensure change-Id's are reused.
 
 ### Use pull-request body and title in the commit message
 
