@@ -308,7 +308,7 @@ jobs:
           git log -v --format=%B --reverse "HEAD..HEAD@{1}" | grep -Ev "^(Signed-off-by|Change-Id)" > commit-msg.txt
 
           # capture author info
-          git show -s --pretty=format:"%an <%ae>" -n1 > author-info.txt
+          git show -s --pretty=format:"%an <%ae>" "HEAD..HEAD@{1}" > author-info.txt
           if [[ -s author-info.txt ]]; then
               author="$(cat author-info.txt)"
           fi
