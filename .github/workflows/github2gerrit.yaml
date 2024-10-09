@@ -261,6 +261,7 @@ jobs:
         run: |
           set -x
 
+          # shellcheck disable=SC2016
           gh api graphql --paginate \
               -F number=${{ env.PR_NUMBER }} \
               -F owner=${{ vars.ORGANIZATION }} \
