@@ -1,0 +1,13 @@
+---
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2024 The Linux Foundation
+
+# Markdownlint configuration file
+
+# Default state for all rules
+default: true
+
+# Path to configuration file to extend
+extends: null
+
+MD013: false

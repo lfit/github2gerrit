@@ -1,23 +1,42 @@
 ---
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2024 The Linux Foundation
+
 ci:
   autofix_commit_msg: "Chore: pre-commit autoupdate"
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: f71fa2c1f9cf5cb705f73dffe4b21f7c61470ba9 # frozen: v4.4.0
+    rev: cef0300fd0fc4d2a87a85fa2093c6b283ea36f4b # frozen: 5.0.0
     hooks:
-      - id: trailing-whitespace
       - id: check-added-large-files
       - id: check-ast
+      - id: check-case-conflict
+      - id: check-docstring-first
+      - id: check-executables-have-shebangs
+      - id: check-illegal-windows-names
       - id: check-json
       - id: check-merge-conflict
+      - id: check-shebang-scripts-are-executable
+      - id: check-symlinks
+      - id: check-toml
       - id: check-xml
       - id: check-yaml
       - id: debug-statements
+      - id: destroyed-symlinks
+      - id: detect-aws-credentials
+        args: ["--allow-missing-credentials"]
+      # - id: double-quote-string-fixer
+      - id: detect-private-key
       - id: end-of-file-fixer
-      - id: requirements-txt-fixer
+      # - id: file-contents-sorter
+      # - id: fix-byte-order-marker
+      # - id: forbid-new-submodules
+      # - id: forbid-submodules
       - id: mixed-line-ending
         args: ["--fix=lf"]
+      - id: name-tests-test
+        args: ["--pytest-test-first"]
       - id: no-commit-to-branch
         args:
           - --branch=dev
@@ -25,6 +44,12 @@ repos:
           - --branch=main
           - --branch=rc
           - --branch=production
+      # - id: pretty-format-json
+      - id: requirements-txt-fixer
+      # id: sort-simple-yaml
+      # files: ^config/simple/
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
 
   - repo: https://github.com/jorisroovers/gitlint
     rev: acc9d9de6369b76d22cb4167029d2035e8730b98 # frozen: v0.19.1
@@ -32,18 +57,47 @@ repos:
       - id: gitlint
 
   - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: 672abe14d309fc28817d45b6be25ea976a92222a # frozen: v3.0.2
+    rev: f12edd9c7be1c20cfa42420fd0e6df71e42b51ea # frozen: v4.0.0-alpha.8
     hooks:
       - id: prettier
-        stages: [commit]
+        stages: [pre-commit]
 
   - repo: https://github.com/adrienverge/yamllint.git
-    rev: b05e028c5881819161d11cb543fd96a30c06cceb # frozen: v1.32.0
+    rev: 81e9f98ffd059efe8aa9c1b1a42e5cce61b640c6 # frozen: v1.35.1
     hooks:
       - id: yamllint
         types: [yaml]
 
   - repo: https://github.com/shellcheck-py/shellcheck-py
-    rev: 375289a39f5708101b1f916eb729e8d6da96993f # frozen: v0.9.0.5
+    rev: a23f6b85d0fdd5bb9d564e2579e678033debbdff # frozen: v0.10.0.1
     hooks:
       - id: shellcheck
+
+  - repo: https://github.com/Mateusz-Grzelinski/actionlint-py
+    rev: e676b4576ddcc3018077da2c172f30a3a83974eb # frozen: v1.7.3.17
+    hooks:
+      - id: actionlint
+
+  - repo: https://github.com/openstack/bashate
+    rev: fbd7c2534c2701351c603ff700ddf08202430a31 # frozen: 2.1.1
+    hooks:
+      - id: bashate
+        args: ["--ignore=E006,E011"]
+
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: aa975a18c9a869648007d33864034dbc7481fe5e # frozen: v0.42.0
+    hooks:
+      - id: markdownlint
+        args: ["--fix"]
+
+  - repo: https://github.com/fsfe/reuse-tool
+    rev: 97607144d9c340262236b6eb1cf7b605e9a5880a # frozen: v4.0.3
+    hooks:
+      - id: reuse
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: 75b98813cfb7e663870a28c74366a1e99d7bfe79 # frozen: v0.6.9
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
