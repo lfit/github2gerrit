@@ -74,12 +74,12 @@ repos:
       - id: shellcheck
 
   - repo: https://github.com/Mateusz-Grzelinski/actionlint-py
-    rev: 27445053da613c660ed5895d9616662059a53ca7  # frozen: v1.7.3.17
+    rev: 27445053da613c660ed5895d9616662059a53ca7 # frozen: v1.7.3.17
     hooks:
       - id: actionlint
 
   - repo: https://github.com/openstack/bashate
-    rev: 5798d24d571676fc407e81df574c1ef57b520f23  # frozen: 2.1.1
+    rev: 5798d24d571676fc407e81df574c1ef57b520f23 # frozen: 2.1.1
     hooks:
       - id: bashate
         args: ["--ignore=E006,E011"]
@@ -91,7 +91,7 @@ repos:
         args: ["--fix"]
 
   - repo: https://github.com/fsfe/reuse-tool
-    rev: 4906d887c29f724e91a710c988cc786bd5b695b3  # frozen: v4.0.3
+    rev: 4906d887c29f724e91a710c988cc786bd5b695b3 # frozen: v4.0.3
     hooks:
       - id: reuse
 
