@@ -50,9 +50,10 @@ on:
         required: true
         type: string
       ORGANIZATION:
-        description: "Orginazation name ex: OpendayLight.org"
-        required: true
+        description: "Organization name, e.g. opendaylight"
+        required: false
         type: string
+        default: ${{ github.repository_owner }}
       REVIEWERS_EMAIL:
         description: "Committers email list (comma separated) to notify on code-reviews"
         required: false
@@ -264,7 +265,7 @@ jobs:
           # shellcheck disable=SC2016
           gh api graphql --paginate \
               -F number=${{ env.PR_NUMBER }} \
-              -F owner=${{ vars.ORGANIZATION }} \
+              -F owner=${{ inputs.ORGANIZATION }} \
               -F name=${{ env.PROJECT_REPO_GITHUB }} \
               -f query='query($name: String!, $owner: String!, $number: Int!) {
               repository(owner: $owner, name: $name) {
