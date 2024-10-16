@@ -139,8 +139,8 @@ jobs:
         run: |
           set -x
 
-          gerrit_server=$(grep -E "host" .gitreview | cut -d "=" -f2)
-          gerrit_server_port=$(grep -E "port" .gitreview | cut -d "=" -f2)
+          gerrit_server=$(grep -oP -m1 '(?<=host=).*' .gitreview)
+          gerrit_server_port=$(grep -oP -m1 '(?<=port=).*' .gitreview)
           echo "GERRIT_SERVER=${gerrit_server}" >> "$GITHUB_ENV"
           echo "GERRIT_SERVER_PORT=${gerrit_server_port}" >> "$GITHUB_ENV"
 
