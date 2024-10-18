@@ -78,6 +78,19 @@ Or, submit each commit as a separate single commit preserving the git history (S
 - `ORGANIZATION`: The GitHub Organization or Project.
 - `REVIEWER_EMAIL`: Committers' email list (comma-separated list without spaces).
 
+## Deploying to a New Linux Foundation Project
+
+1. Create a new GitHub2Gerrit user LFID (this needs to be project specific)
+1. Add user to the appropriate organisation/vault in 1Password (e.g. LF Networking/ONAP)
+1. Get user added to the appropriate groups (with required Gerrit permissions)
+1. Log in to Gerrit web interface/UI (this creates the user account in Gerrit)
+1. Create a new SSH key-pair (ed25519) and the SSH key to the user's profile
+1. Add the new SSH keys used to the appropriate 1Password vault
+1. Add mandatory secrets/vars (documented above) to GitHub
+
+It is recommended to only add secrets/variables to a repository during initial testing.
+You can later move them to the ORGANISATION level when ready to go into production.
+
 ## Full Example Usage with Composite Action
 
 Use the composite action as a step in the workflow for further processing.
