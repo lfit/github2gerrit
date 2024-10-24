@@ -319,13 +319,15 @@ jobs:
               commit_message="${commit_message:-commit-msg.txt}"
           fi
 
-          # overide the change-id if the change is update on Gerrit
-          if [[ -f "reuse-cids-${{ env.PR_NUMBER }}.txt" ]] && (${{ github.event.action == 'reopened' }} || ${{ github.event.action == 'synchronize' }}); then
+          # overide and re-use the same change-id  if the change was updated
+          if [[ -s "reuse-cids-${{ env.PR_NUMBER }}.txt" ]] && (${{ github.event.action == 'reopened' }} || ${{ github.event.action == 'synchronize' }}); then
               reuse_cid="$(< "reuse-cids-${{ env.PR_NUMBER }}.txt" uniq | tail -1)"
-              echo "Change-Id: $reuse_cid" > change-Id.txt
-              commit_message+=' '
-              commit_message+="change-Id.txt"
-          elif [[ -f change-Id.txt ]]; then
+              if [ -n "${reuse_cid}" ]; then
+                  echo "Change-Id: $reuse_cid" > change-Id.txt
+                  commit_message+=' '
+                  commit_message+="change-Id.txt"
+              fi
+          elif [[ -f change-Id.txt && ! -s "reuse-cids-${{ env.PR_NUMBER }}.txt" ]]; then
               commit_message+=' '
               commit_message+="change-Id.txt"
           fi
