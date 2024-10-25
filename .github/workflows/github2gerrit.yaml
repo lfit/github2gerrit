@@ -163,7 +163,7 @@ jobs:
       - name: Set env GITHUB branch in env
         shell: bash
         run: |
-          gerrit_branch="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
+          gerrit_branch="${GITHUB_BASE_REF:-master}"
           echo "GERRIT_BRANCH=${gerrit_branch}" >> "$GITHUB_ENV"
 
       - name: Print last X commits in the git log
