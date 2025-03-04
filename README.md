@@ -60,12 +60,18 @@ Or, submit each commit as a separate single commit preserving the git history (S
 - `inputs.SUBMIT_SINGLE_COMMITS` has not be tested extensively for handling large pull requests.
 - Code review comments on Gerrit are not synchronized back to the pull request comment, therefore requires developers to follow up on the Gerrit change request URL. Rework through the recommended changes can be done by reopening the pull request and updating to the commits through a force push.
 
-## Required Inputs
+## Required Inputs or Variables
+
+Set the following under Organization or repository variables.
 
 - `GERRIT_KNOWN_HOSTS`: Known host of the Gerrit repository.
 - `GERRIT_SSH_PRIVKEY_G2G`: SSH private key pair (The private key has to be added to the Gerrit user's account settings. Gerrit -> User Settings).
 - `GERRIT_SSH_USER_G2G`: Gerrit server username (Required to connect to Gerrit).
 - `GERRIT_SSH_USER_G2G_EMAIL`: Email of the Gerrit user.
+
+## Optional Variables
+
+- `ISSUEID`: Set to `true` to add an `Issue-ID: <ISSUE-NO>` in the commit footer. The variable needs the [`inject-issue-id-action`](https://github.com/lfit/releng-reusable-workflows/tree/main/.github/actions/inject-issue-id-action) action from the releng-reusable-workflows repository.
 
 ## Optional Inputs
 
