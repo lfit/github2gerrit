@@ -74,29 +74,29 @@ repos:
       - id: shellcheck
 
   - repo: https://github.com/Mateusz-Grzelinski/actionlint-py
-    rev: e676b4576ddcc3018077da2c172f30a3a83974eb # frozen: v1.7.3.17
+    rev: a185be0fd5b45112845b700d91b81050c75579e2 # frozen: v1.7.7.23
     hooks:
       - id: actionlint
 
   - repo: https://github.com/openstack/bashate
-    rev: fbd7c2534c2701351c603ff700ddf08202430a31 # frozen: 2.1.1
+    rev: 5798d24d571676fc407e81df574c1ef57b520f23 # frozen: 2.1.1
     hooks:
       - id: bashate
         args: ["--ignore=E006,E011"]
 
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: aa975a18c9a869648007d33864034dbc7481fe5e # frozen: v0.42.0
+    rev: v0.44.0 # frozen: v0.42.0
     hooks:
       - id: markdownlint
         args: ["--fix"]
 
   - repo: https://github.com/fsfe/reuse-tool
-    rev: 97607144d9c340262236b6eb1cf7b605e9a5880a # frozen: v4.0.3
+    rev: 60dfc6b2ad9e1f3eabfbcf3a0dc202ee89dc5a00 # frozen: v5.0.2
     hooks:
       - id: reuse
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: 75b98813cfb7e663870a28c74366a1e99d7bfe79 # frozen: v0.6.9
+    rev: 41d2daf392fbf43341a77f24a9c6481a4b66af98 # frozen: v0.9.10
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
