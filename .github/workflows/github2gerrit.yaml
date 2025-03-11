@@ -13,7 +13,7 @@ on:
         default: false
         type: boolean
       USE_PR_AS_COMMIT:
-        description: "Use PR body and tittle as commit message"
+        description: "Use PR body and title as commit message"
         required: false
         default: false
         type: boolean
@@ -304,7 +304,7 @@ jobs:
           git reset --soft "${{ github.sha }}"
 
           # Check if change-id is present in each commit and use the first one
-          # Capture and check for signed-of-by and Change-Id
+          # Capture and check for signed-off-by and Change-Id
           git log -v --format=%B --reverse "HEAD..HEAD@{1}" | grep -E "^(Change-Id)" > change-Id.txt || true
           git log -v --format=%B --reverse "HEAD..HEAD@{1}" | grep -E "^(Signed-off-by)" > signed-off-by.txt || true
           git log -v --format=%B --reverse "HEAD..HEAD@{1}" | grep -Ev "^(Signed-off-by|Change-Id)" > commit-msg.txt
@@ -319,7 +319,7 @@ jobs:
               commit_message="${commit_message:-commit-msg.txt}"
           fi
 
-          # overide and re-use the same change-id  if the change was updated
+          # override and reuse the same change-id  if the change was updated
           if [[ -s "reuse-cids-${{ env.PR_NUMBER }}.txt" ]] && (${{ github.event.action == 'reopened' }} || ${{ github.event.action == 'synchronize' }}); then
               reuse_cid="$(< "reuse-cids-${{ env.PR_NUMBER }}.txt" uniq | tail -1)"
               if [ -n "${reuse_cid}" ]; then
@@ -342,14 +342,14 @@ jobs:
           git commit -s -v --no-edit --author "$author" -m "$(cat $commit_message)"
           git log -n2
 
-      - name: Overwrite commit message with PR tittle and body
+      - name: Overwrite commit message with PR title and body
         if: ${{ (github.event_name == 'pull_request_target') && (env.PR_COMMITS > 0) && (inputs.USE_PR_AS_COMMIT == true) && (inputs.SUBMIT_SINGLE_COMMITS == false) }}
         shell: bash
         # yamllint disable rule:line-length
         run: |
           set -x
 
-          pr_tittle_length="$(gh pr view ${{ env.PR_NUMBER }} --json title | jq '.[] | length')"
+          pr_title_length="$(gh pr view ${{ env.PR_NUMBER }} --json title | jq '.[] | length')"
           pr_body_length="$(gh pr view ${{ env.PR_NUMBER }} --json body | jq '.[] | length')"
 
           gh pr view ${{ env.PR_NUMBER }} --json title | jq -r '.title | select( . != null )' > pr_title.txt
@@ -366,7 +366,7 @@ jobs:
               author="$(cat author-info.txt)"
           fi
 
-          if [[ -f pr_commit.txt ]] && [[ ($pr_body_length -gt 0) ]] && [[ ($pr_tittle_length -gt 0) ]]; then
+          if [[ -f pr_commit.txt ]] && [[ ($pr_body_length -gt 0) ]] && [[ ($pr_title_length -gt 0) ]]; then
               git commit -s -v --amend --author "$author" --no-edit -F "pr_commit.txt"
               git log -n2
           fi
@@ -393,7 +393,7 @@ jobs:
           echo "git review .... inprogress"
           git review --yes -t "$topic" --reviewers "$reviewers"
 
-      - name: Validate Change-ID and retrive the Gerrit change number
+      - name: Validate Change-ID and retrieve the Gerrit change number
         id: change_num
         shell: bash
         # yamllint disable rule:line-length
@@ -401,7 +401,7 @@ jobs:
           set -x
 
           if [[ ! -s change-Id.txt ]]; then
-              # retrive change-id from the submitted PR
+              # retrieve change-id from the submitted PR
               gerrit_change_id=$(git show HEAD --format=%B -s | grep Change-Id: | cut -d " " -f2;)
               if [[ "$gerrit_change_id" == '' ]]; then
                   echo "GERRIT_CHANGE_ID: null"; exit 1
@@ -419,7 +419,7 @@ jobs:
           fi
 
           while IFS="" read -r cid; do
-              # Query for a pre-existing gerrit review to retrive Change-Id
+              # Query for a pre-existing gerrit review to retrieve Change-Id
               ssh -v -n -p 29418 "${{ inputs.GERRIT_SSH_USER_G2G }}@${{ env.GERRIT_SERVER }}" \
                       "gerrit query limit:1 owner:self is:open" \
                       "project:${{ env.PROJECT_REPO_GERRIT }}" \
@@ -483,7 +483,7 @@ jobs:
                       "$csha"
           done < commit-sha.txt
 
-      - name: Add comment to refrence the change-request on the pull-request
+      - name: Add comment to reference the change-request on the pull-request
         if: |
           hashFiles('commit-sha.txt') != '' ||
           (! startsWith(env.GERRIT_CR_URL_CID, ''))
