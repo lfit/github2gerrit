@@ -187,6 +187,33 @@ jobs:
               PubkeyAcceptedKeyTypes +ssh-rsa
               IdentityFile ~/.ssh/id_rsa
 
+      - name: "Set key to use for JSON lookup"
+        if: vars.ISSUEID == 'true'
+        shell: bash
+        run: |
+          # Set key to use for JSON lookup
+          ACTOR="${{ github.actor }}"
+          ACTOR_ID="${{ github.actor_id }}"
+          echo "Using GitHub actor as lookup key: $ACTOR [$ACTOR_ID]"
+          echo "key=$ACTOR" >> "$GITHUB_ENV"
+
+      - name: "Get ticket from JSON lookup table"
+        if: vars.ISSUEID == 'true'
+        uses: lfit/releng-reusable-workflows/.github/actions/json-key-value-lookup-action@main
+        with:
+          json: ${{ vars.ISSUE_ID_LOOKUP_JSON }}
+          key: ${{ env.key }}
+
+      - name: "Set IssueID in GITHUB_ENV"
+        if: vars.ISSUEID == 'true'
+        shell: bash
+        # yamllint disable rule:line-length
+        run: |
+          set -x
+          if [ -n "${{ env.value }}" ]; then
+              echo "SET_ISSUE_ID=${{ env.value }}" >> "$GITHUB_ENV"
+          fi
+
       - name: Setup Gerrit remote
         if: env.PROJECT_REPO_GERRIT != ''
         shell: bash
@@ -249,6 +276,7 @@ jobs:
                   echo "FAIL: Change-Id not created, exit job!"
                   exit 1
               fi
+              # issue_id="$(git log --format="%(trailers:key=Issue-ID,valueonly,separator=%x2C)" -n1)"
               git checkout ${{ env.GERRIT_BRANCH }}
           done
           git log -n3
@@ -319,6 +347,12 @@ jobs:
               commit_message="${commit_message:-commit-msg.txt}"
           fi
 
+          if [[ -f signed-off-by.txt ]]; then
+              sort -u signed-off-by.txt -o signed-off-by-final.txt
+              commit_message+=' '
+              commit_message+="signed-off-by-final.txt"
+          fi
+
           # override and reuse the same change-id  if the change was updated
           if [[ -s "reuse-cids-${{ env.PR_NUMBER }}.txt" ]] && (${{ github.event.action == 'reopened' }} || ${{ github.event.action == 'synchronize' }}); then
               reuse_cid="$(< "reuse-cids-${{ env.PR_NUMBER }}.txt" uniq | tail -1)"
@@ -332,15 +366,23 @@ jobs:
               commit_message+="change-Id.txt"
           fi
 
-          if [[ -f signed-off-by.txt ]]; then
-              sort -u signed-off-by.txt -o signed-off-by-final.txt
-              commit_message+=' '
-              commit_message+="signed-off-by-final.txt"
+          # Dependabot workaround for LF projects enforcing an "issue-id" in commit message
+          if [ -n ${{ env.SET_ISSUE_ID }} ]; then
+              # workaround to remove lines with --- or ...
+              sed -i -e 's#^[ ]*---##g' -e 's#^[ ]*\.\.\.##g' commit-msg.txt
+              issue_id="Issue-ID: ${{ env.SET_ISSUE_ID }}"
+              # shellcheck disable=SC2086
+              git commit -s -v --no-edit --author "$author" -m "$(cat commit-msg.txt)" -m "$issue_id" -m "$(cat signed-off-by-final.txt)"
+          else
+              # shellcheck disable=SC2086
+              git commit -s -v --no-edit --author "$author" -m "$(cat $commit_message)"
           fi
 
-          # shellcheck disable=SC2086
-          git commit -s -v --no-edit --author "$author" -m "$(cat $commit_message)"
-          git log -n2
+          # # shellcheck disable=SC2086
+          # git commit -s -v --no-edit --author "$author" -m "$(cat $commit_message)"
+          git log -n1
+        env:
+          SET_ISSUE_ID: ${{ env.SET_ISSUE_ID }}
 
       - name: Overwrite commit message with PR title and body
         if: ${{ (github.event_name == 'pull_request_target') && (env.PR_COMMITS > 0) && (inputs.USE_PR_AS_COMMIT == true) && (inputs.SUBMIT_SINGLE_COMMITS == false) }}
@@ -368,10 +410,11 @@ jobs:
 
           if [[ -f pr_commit.txt ]] && [[ ($pr_body_length -gt 0) ]] && [[ ($pr_title_length -gt 0) ]]; then
               git commit -s -v --amend --author "$author" --no-edit -F "pr_commit.txt"
-              git log -n2
+              git log -n1
           fi
         env:
           GH_TOKEN: ${{ github.token }}
+          SET_ISSUE_ID: ${{ env.SET_ISSUE_ID }}
 
       - name: Submit the change to Gerrit repository
         id: submit
@@ -509,6 +552,10 @@ jobs:
         # yamllint disable rule:line-length
         run: |
           set -x
-          gh pr close --comment "Auto-closing pull request" --delete-branch "${{ env.PR_NUMBER }}"
+          if [ -n ${{ env.SET_ISSUE_ID }} ]; then
+              gh pr close --comment "Auto-closing pull request" "${{ env.PR_NUMBER }}"
+          else
+              gh pr close --comment "Auto-closing pull request" --delete-branch "${{ env.PR_NUMBER }}"
+          fi
         env:
           GH_TOKEN: ${{ github.token }}
