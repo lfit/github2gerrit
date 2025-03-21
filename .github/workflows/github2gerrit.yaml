@@ -367,19 +367,16 @@ jobs:
           fi
 
           # Dependabot workaround for LF projects enforcing an "issue-id" in commit message
-          if [ -n ${{ env.SET_ISSUE_ID }} ]; then
+          if [[ -n ${{ env.SET_ISSUE_ID }} && '${{ vars.ISSUEID }}' == 'true' ]]; then
               # workaround to remove lines with --- or ...
               sed -i -e 's#^[ ]*---##g' -e 's#^[ ]*\.\.\.##g' commit-msg.txt
-              issue_id="Issue-ID: ${{ env.SET_ISSUE_ID }}"
+              issue_id="${{ env.SET_ISSUE_ID }}"
               # shellcheck disable=SC2086
               git commit -s -v --no-edit --author "$author" -m "$(cat commit-msg.txt)" -m "$issue_id" -m "$(cat signed-off-by-final.txt)"
           else
               # shellcheck disable=SC2086
               git commit -s -v --no-edit --author "$author" -m "$(cat $commit_message)"
           fi
-
-          # # shellcheck disable=SC2086
-          # git commit -s -v --no-edit --author "$author" -m "$(cat $commit_message)"
           git log -n1
         env:
           SET_ISSUE_ID: ${{ env.SET_ISSUE_ID }}
