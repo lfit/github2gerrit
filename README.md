@@ -71,7 +71,7 @@ Set the following under Organization or repository variables.
 
 ## Optional Variables
 
-- `ISSUEID`: Set to `true` to add an `Issue-ID: <ISSUE-NO>` in the commit footer. The variable needs the [`inject-issue-id-action`](https://github.com/lfit/releng-reusable-workflows/tree/main/.github/actions/inject-issue-id-action) action from the releng-reusable-workflows repository.
+- `ISSUEID`: Set to `true` to add an `Issue-ID: <ISSUE-NO>` in the commit footer. The variable needs the [`inject-issue-id-action`](https://github.com/lfit/releng-reusable-workflows/tree/main/.github/actions/inject-issue-id-action) action from the releng-reusable-workflows repository. The `inject-issue-id-action` injects the issue-id string into the `env.SET_ISSUE_ID` Github environment variable that is referenced and set into the commit message.
 
 ## Optional Inputs
 
