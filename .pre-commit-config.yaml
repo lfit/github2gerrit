@@ -63,7 +63,7 @@ repos:
         stages: [pre-commit]
 
   - repo: https://github.com/adrienverge/yamllint.git
-    rev: 79a6b2b1392eaf49cdd32ac4f14be1a809bbd8f7  # frozen: v1.37.1
+    rev: 79a6b2b1392eaf49cdd32ac4f14be1a809bbd8f7 # frozen: v1.37.1
     hooks:
       - id: yamllint
         types: [yaml]
@@ -96,7 +96,7 @@ repos:
       - id: reuse
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: f0fe93c067104b76ffb58852abe79673a8429bd1  # frozen: v0.11.8
+    rev: f0fe93c067104b76ffb58852abe79673a8429bd1 # frozen: v0.11.8
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
