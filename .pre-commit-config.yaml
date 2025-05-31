@@ -85,7 +85,7 @@ repos:
         args: ["--ignore=E006,E011"]
 
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.44.0 # frozen: v0.42.0
+    rev: v0.45.0 # frozen: v0.42.0
     hooks:
       - id: markdownlint
         args: ["--fix"]
@@ -96,7 +96,7 @@ repos:
       - id: reuse
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: f0fe93c067104b76ffb58852abe79673a8429bd1 # frozen: v0.11.8
+    rev: 76e47323a83cd9795e4ff9a1de1c0d2eef610f17 # frozen: v0.11.11
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
