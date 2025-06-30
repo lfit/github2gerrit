@@ -96,7 +96,7 @@ repos:
       - id: reuse
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: 7445ed19e95ffaa6aad0d9bd4123025f7039511a  # frozen: v0.12.1
+    rev: 7445ed19e95ffaa6aad0d9bd4123025f7039511a # frozen: v0.12.1
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
