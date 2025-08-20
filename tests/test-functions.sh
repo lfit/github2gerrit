@@ -5,13 +5,17 @@
 # Test helper functions for github2gerrit
 
 # Extract functions from main script without executing it
-# SCRIPT_DIR="$(dirname "$0")/.." # Unused but kept for future use
+# TODO: Use SCRIPT_DIR to locate main script when test coverage is expanded to integration tests.
 
 # Define the functions locally to avoid sourcing the main script
 extract_project() {
     local url="$1"
     local project
     project=$(echo "$url" | sed -E 's#.*/c/([^/]+/[^/]+)/\+.*#\1#')
+    if [[ -z "$project" || "$project" == "$url" ]]; then
+        echo ""
+        return 1
+    fi
     echo "$project"
 }
 
@@ -19,6 +23,10 @@ extract_change_number() {
     local url="$1"
     local change_number
     change_number=$(echo "$url" | sed -E 's#.*/\+/([0-9]+).*#\1#')
+    if [[ "$change_number" == "$url" ]]; then
+        echo ""
+        return 1
+    fi
     echo "$change_number"
 }
 

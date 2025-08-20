@@ -27,7 +27,7 @@ This document outlines the comprehensive multi-layered testing approach implemen
 - **Purpose**: Cross-platform compatibility testing
 - **Runtime**: 5 minutes per matrix combination
 - **Matrix Dimensions**:
-  - **OS**: `ubuntu-latest`, `ubuntu-22.04`, `ubuntu-20.04`
+  - **OS**: `ubuntu-latest`, `ubuntu-22.04`
   - **Action Type**: `composite`, `reusable`
 - **Test Cases**:
   - Dependency installation (git-review, jq, python3)
@@ -57,16 +57,6 @@ This document outlines the comprehensive multi-layered testing approach implemen
   - Tests real SSH connections (with failure tolerance)
   - Validates complete workflow execution
   - Generates test results summary
-
-### 5. Security Validation (`security-validation`)
-
-- **Purpose**: Security and input sanitization testing
-- **Runtime**: 3 minutes
-- **Checks**:
-  - Secret exposure detection in logs
-  - Hardcoded credential scanning
-  - Input injection testing (command injection, shell injection)
-  - Safe handling of malicious inputs
 
 ## Test Infrastructure
 

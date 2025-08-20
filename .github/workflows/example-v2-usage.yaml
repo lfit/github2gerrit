@@ -1,0 +1,70 @@
+---
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2024 The Linux Foundation
+
+# Example usage of the new modular github2gerrit-v2 workflow
+name: Example GitHub2Gerrit V2 Usage
+
+# yamllint disable-line rule:truthy
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+    branches: [main, master]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number to process"
+        required: true
+        type: number
+
+concurrency:
+  group: example-g2g-v2-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  submit-to-gerrit:
+    name: "Submit PR to Gerrit (V2)"
+    if: false # Disabled by default - remove this line to enable
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: ./.github/workflows/github2gerrit-v2.yaml
+    with:
+      # Submission options
+      SUBMIT_SINGLE_COMMITS: false # Default: squash commits
+      USE_PR_AS_COMMIT: false # Default: use original commit messages
+      FETCH_DEPTH: "0" # Fetch full history
+
+      # Gerrit configuration (required)
+      GERRIT_KNOWN_HOSTS: ${{ vars.GERRIT_KNOWN_HOSTS }}
+      GERRIT_SSH_USER_G2G: ${{ vars.GERRIT_SSH_USER_G2G }}
+      GERRIT_SSH_USER_G2G_EMAIL: ${{ vars.GERRIT_SSH_USER_G2G_EMAIL }}
+
+      # Optional Gerrit overrides (use when .gitreview is missing)
+      # GERRIT_SERVER: "review.opendev.org"
+      # GERRIT_SERVER_PORT: "29418"
+      # GERRIT_PROJECT: "openstack/nova"
+
+      # GitHub organization
+      ORGANIZATION: ${{ vars.ORGANIZATION }}
+
+      # Optional: Reviewers to notify
+      REVIEWERS_EMAIL: ${{ vars.REVIEWERS_EMAIL }}
+    secrets:
+      GERRIT_SSH_PRIVKEY_G2G: ${{ secrets.GERRIT_SSH_PRIVKEY_G2G }}
+
+  # Example: Use the outputs from the workflow
+  follow-up-actions:
+    name: "Follow-up Actions"
+    needs: submit-to-gerrit
+    if: needs.submit-to-gerrit.outputs.gerrit_change_url != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Process Gerrit submission results"
+        run: |
+          echo "::notice::Gerrit change created successfully!"
+          echo "::notice::Change URL: ${{ needs.submit-to-gerrit.outputs.gerrit_change_url }}"
+          echo "::notice::Change Number: ${{ needs.submit-to-gerrit.outputs.gerrit_change_number }}"
+
+          # Example: Send notification, update issue, etc.
+          # slack-notify, email, database update, etc.
