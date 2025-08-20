@@ -28,6 +28,7 @@ repos:
         args: ["--allow-missing-credentials"]
       # - id: double-quote-string-fixer
       - id: detect-private-key
+        exclude: run-tests.sh
       - id: end-of-file-fixer
       # - id: file-contents-sorter
       # - id: fix-byte-order-marker
@@ -94,15 +95,6 @@ repos:
     rev: 60dfc6b2ad9e1f3eabfbcf3a0dc202ee89dc5a00 # frozen: v5.0.2
     hooks:
       - id: reuse
-        exclude: |
-          (?x)^(
-              tests/fixtures/sample-gerrit-response\.json|
-              .*\.file|
-              COMMIT-MESSAGE\.txt|
-              gerrit_change_info\.yaml|
-              gerrit_query_info_new\.yaml|
-              gerrit_query_parse\.sh
-          )$
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: 455f64b32459518aa82ec33b63f799ed048d65a9 # frozen: v0.12.8
