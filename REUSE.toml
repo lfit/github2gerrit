@@ -1,0 +1,8 @@
+version = 1
+# Computer-generated files or json
+[[annotations]]
+path = [
+    "tests/fixtures/sample-gerrit-response.json"
+]
+SPDX-FileCopyrightText =  "2025 The Linux Foundation"
+SPDX-License-Identifier = "Apache-2.0"
