@@ -1,0 +1,25 @@
+{
+  "branch": "main",
+  "id": "I1234567890abcdef1234567890abcdef12345678",
+  "url": "https://git.opendaylight.org/gerrit/c/releng/builder/+/111445",
+  "number": "111445",
+  "project": "releng/builder",
+  "status": "NEW",
+  "subject": "Sample test change",
+  "owner": {
+    "name": "Test User",
+    "email": "test@example.com"
+  },
+  "currentPatchSet": {
+    "number": "1",
+    "revision": "abc123def456",
+    "ref": "refs/changes/45/111445/1"
+  },
+  "patchSets": [
+    {
+      "number": "1",
+      "revision": "abc123def456",
+      "ref": "refs/changes/45/111445/1"
+    }
+  ]
+}
