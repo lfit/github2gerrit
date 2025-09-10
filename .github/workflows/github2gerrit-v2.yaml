@@ -241,7 +241,7 @@ jobs:
       - name: "Add GitHub reference to PR"
         if: env.GERRIT_CR_URL_CID != ''
         # yamllint disable rule:line-length
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           # yamllint disable rule:line-length
           script: |
