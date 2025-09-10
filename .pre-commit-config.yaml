@@ -75,7 +75,7 @@ repos:
       - id: shellcheck
 
   - repo: https://github.com/Mateusz-Grzelinski/actionlint-py
-    rev: a185be0fd5b45112845b700d91b81050c75579e2 # frozen: v1.7.7.23
+    rev: f999ae59ac949d9b57aaa5569c2d60eb846b3a00 # frozen: v1.7.7.24
     hooks:
       - id: actionlint
 
@@ -92,12 +92,12 @@ repos:
         args: ["--fix"]
 
   - repo: https://github.com/fsfe/reuse-tool
-    rev: 60dfc6b2ad9e1f3eabfbcf3a0dc202ee89dc5a00 # frozen: v5.0.2
+    rev: 8b8bbd873b2af6b2a2521ab2b1ff07b2ab624840 # frozen: v5.1.1
     hooks:
       - id: reuse
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: 455f64b32459518aa82ec33b63f799ed048d65a9 # frozen: v0.12.8
+    rev: 60ef368a6f48dfb4317651017f66dbb055241a6c # frozen: v0.12.12
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
