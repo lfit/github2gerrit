@@ -379,7 +379,7 @@ runs:
       if: |
         hashFiles('commit-sha.txt') != '' ||
         (! startsWith(env.GERRIT_CHANGE_REQUEST_URL, ''))
-      uses: actions/github-script@v7
+      uses: actions/github-script@v8
       with:
         result-encoding: string
         retries: 3
