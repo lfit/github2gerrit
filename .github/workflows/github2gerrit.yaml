@@ -97,7 +97,7 @@ jobs:
           jq --version
 
       - name: Clone Github repo where the PR is submitted
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: ${{ inputs.fetch_depth }}
           ref: ${{ github.event.pull_request.head.sha }}
