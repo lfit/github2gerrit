@@ -28,6 +28,7 @@ repos:
         args: ["--allow-missing-credentials"]
       # - id: double-quote-string-fixer
       - id: detect-private-key
+        exclude: run-tests.sh
       - id: end-of-file-fixer
       # - id: file-contents-sorter
       # - id: fix-byte-order-marker

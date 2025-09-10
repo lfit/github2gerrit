@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2024 The Linux Foundation
+
+[gerrit]
+host=git.opendaylight.org
+port=29418
+project=releng/builder
+defaultbranch=main

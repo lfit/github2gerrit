@@ -1,0 +1,312 @@
+---
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2025 The Linux Foundation
+
+name: github2gerrit-reusable-workflow-v2
+
+on:
+  workflow_call:
+    inputs:
+      SUBMIT_SINGLE_COMMITS:
+        description: "Submit one commit at a time to the Gerrit repository"
+        required: false
+        default: false
+        type: boolean
+      USE_PR_AS_COMMIT:
+        description: "Use PR body and title as commit message"
+        required: false
+        default: false
+        type: boolean
+      FETCH_DEPTH:
+        description: "fetch-depth for the clone. (Default: 10)"
+        required: false
+        default: "10"
+        type: string
+      GERRIT_KNOWN_HOSTS:
+        description: "known hosts"
+        required: true
+        type: string
+      GERRIT_SERVER:
+        description: "Gerrit hostname ex: git.opendaylight.org"
+        required: false
+        default: ""
+        type: string
+      GERRIT_SERVER_PORT:
+        description: "Gerrit port. (Default: 29418)"
+        required: false
+        default: "29418"
+        type: string
+      GERRIT_PROJECT:
+        description: "Gerrit project name. ex: releng/builder"
+        required: false
+        default: ""
+        type: string
+      GERRIT_SSH_USER_G2G:
+        description: "Gerrit user-id for SSH"
+        required: true
+        type: string
+      GERRIT_SSH_USER_G2G_EMAIL:
+        description: "Email of the SSH user"
+        required: true
+        type: string
+      ORGANIZATION:
+        description: "Organization name, e.g. opendaylight"
+        required: false
+        type: string
+        default: ${{ github.repository_owner }}
+      REVIEWERS_EMAIL:
+        description: "Committers email list (comma separated) to notify on code-reviews"
+        required: false
+        default: ""
+        type: string
+    secrets:
+      GERRIT_SSH_PRIVKEY_G2G:
+        description: "SSH Private key"
+        required: true
+    outputs:
+      gerrit_change_url:
+        description: "URL of the Gerrit change request"
+        value: ${{ jobs.github2gerrit.outputs.change_url }}
+      gerrit_change_number:
+        description: "Gerrit change request number"
+        value: ${{ jobs.github2gerrit.outputs.change_number }}
+
+concurrency:
+  group: g2g-v2-${{ github.workflow }}-${{ github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  github2gerrit:
+    name: "Submit PR to Gerrit"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
+
+    outputs:
+      change_url: ${{ env.GERRIT_CHANGE_REQUEST_URL }}
+      change_number: ${{ env.GERRIT_CHANGE_REQUEST_NUM }}
+
+    steps:
+      - name: "Validate workflow inputs"
+        if: ${{ inputs.USE_PR_AS_COMMIT && inputs.SUBMIT_SINGLE_COMMITS }}
+        run: |
+          echo "::error::USE_PR_AS_COMMIT and SUBMIT_SINGLE_COMMITS cannot be enabled simultaneously"
+          exit 1
+
+      - name: "Setup Python environment"
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: "Install jq"
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+          echo "::notice::Installed jq $(jq --version)"
+
+      - name: "Install dependencies"
+        run: |
+          python -m pip install --upgrade pip
+          pip install "git-review==2.3.1"
+          echo "::notice::Installed git-review $(git review --version)"
+
+      - name: "Checkout repository"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: ${{ inputs.FETCH_DEPTH }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          token: ${{ github.token }}
+
+      - name: "Setup SSH key"
+        uses: shimataro/ssh-key-action@d4fffb50872869abe2d9a9098a6d9c5aa7d16be4
+        with:
+          key: ${{ secrets.GERRIT_SSH_PRIVKEY_G2G }}
+          name: "id_rsa"
+          known_hosts: ${{ inputs.GERRIT_KNOWN_HOSTS }}
+          config: |
+            Host ${{ env.GERRIT_SERVER }}
+              User ${{ inputs.GERRIT_SSH_USER_G2G }}
+              Port ${{ env.GERRIT_SERVER_PORT || '29418' }}
+              PubkeyAcceptedKeyTypes +ssh-rsa
+              IdentityFile ~/.ssh/id_rsa
+
+      - name: "Setup environment variables"
+        run: ./scripts/setup-environment.sh
+        env:
+          GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GITHUB_BASE_REF: ${{ github.base_ref }}
+
+      - name: "Parse git review configuration"
+        run: ./scripts/parse-gitreview.sh
+        env:
+          GERRIT_PROJECT_INPUT: ${{ inputs.GERRIT_PROJECT }}
+          GERRIT_SERVER_INPUT: ${{ inputs.GERRIT_SERVER }}
+          GERRIT_SERVER_PORT_INPUT: ${{ inputs.GERRIT_SERVER_PORT }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+
+      - name: "Setup Issue ID lookup (if enabled)"
+        if: vars.ISSUEID == 'true'
+        run: |
+          # Set key to use for JSON lookup
+          ACTOR="${{ github.actor }}"
+          ACTOR_ID="${{ github.actor_id }}"
+          echo "::notice::Using GitHub actor as lookup key: $ACTOR [$ACTOR_ID]"
+          echo "key=$ACTOR" >> "$GITHUB_ENV"
+
+      - name: "Get ticket from JSON lookup table"
+        if: vars.ISSUEID == 'true'
+        uses: lfit/releng-reusable-workflows/.github/actions/json-key-value-lookup-action@main
+        with:
+          json: ${{ vars.ISSUE_ID_LOOKUP_JSON }}
+          key: ${{ env.key }}
+
+      - name: "Set Issue ID in environment"
+        if: vars.ISSUEID == 'true'
+        run: |
+          if [[ -n "${{ env.value }}" ]]; then
+            echo "SET_ISSUE_ID=${{ env.value }}" >> "$GITHUB_ENV"
+            echo "::notice::Issue ID set: ${{ env.value }}"
+          fi
+
+      - name: "Configure git for Gerrit"
+        run: ./scripts/setup-git.sh
+        env:
+          GERRIT_SSH_USER_G2G: ${{ inputs.GERRIT_SSH_USER_G2G }}
+          GERRIT_SSH_USER_G2G_EMAIL: ${{ inputs.GERRIT_SSH_USER_G2G_EMAIL }}
+
+      - name: "Handle PR updates and Change-ID reuse"
+        if: >-
+          github.event_name == 'pull_request_target' &&
+          (github.event.action == 'reopened' || github.event.action == 'synchronize')
+        run: ./scripts/handle-pr-updates.sh
+        env:
+          ORGANIZATION: ${{ inputs.ORGANIZATION }}
+          GITHUB_EVENT_ACTION: ${{ github.event.action }}
+          GH_TOKEN: ${{ github.token }}
+
+      - name: "Process PR commits"
+        run: ./scripts/process-commits.sh
+        env:
+          SUBMIT_SINGLE_COMMITS: ${{ inputs.SUBMIT_SINGLE_COMMITS }}
+          USE_PR_AS_COMMIT: ${{ inputs.USE_PR_AS_COMMIT }}
+          GITHUB_EVENT_PULL_REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_EVENT_ACTION: ${{ github.event.action }}
+          SET_ISSUE_ID: ${{ env.SET_ISSUE_ID }}
+          ISSUEID_ENABLED: ${{ vars.ISSUEID }}
+          GH_TOKEN: ${{ github.token }}
+
+      - name: "Handle PR title and body as commit message"
+        if: ${{ inputs.USE_PR_AS_COMMIT && github.event_name == 'pull_request_target' }}
+        run: |
+          echo "::notice::Using PR title and body as commit message"
+
+          # Get PR title and body
+          gh pr view "$PR_NUMBER" --json title,body > pr_data.json
+
+          # Extract title and body
+          jq -r '.title // ""' pr_data.json > pr_title.txt
+          echo "" >> pr_title.txt  # Blank line between title and body
+          jq -r '.body // ""' pr_data.json > pr_body.txt
+
+          # Combine title and body
+          cat pr_title.txt pr_body.txt > pr_commit.txt
+
+          # Get author info and signed-off-by lines
+          if [[ -s author-info.txt && -s signed-off-by-final.txt ]]; then
+            author=$(cat author-info.txt)
+            echo "" >> pr_commit.txt  # Blank line before trailers
+            cat signed-off-by-final.txt >> pr_commit.txt
+
+            # Amend commit with PR content
+            git commit --amend --author "$author" -F pr_commit.txt
+            echo "::notice::Updated commit with PR title and body"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: "Submit to Gerrit"
+        run: ./scripts/submit-to-gerrit.sh
+        env:
+          REVIEWERS_EMAIL: ${{ inputs.REVIEWERS_EMAIL }}
+          GERRIT_SSH_USER_G2G: ${{ inputs.GERRIT_SSH_USER_G2G }}
+          GERRIT_SERVER: ${{ env.GERRIT_SERVER }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+
+      - name: "Add GitHub reference to PR"
+        if: env.GERRIT_CR_URL_CID != ''
+        # yamllint disable rule:line-length
+        uses: actions/github-script@v7
+        with:
+          # yamllint disable rule:line-length
+          script: |
+            const changeUrls = `${{ env.GERRIT_CR_URL_CID }}`;
+            const prNumber = `${{ env.PR_NUMBER }}`;
+            const organization = `${{ inputs.ORGANIZATION }}`;
+            const gerritServer = `${{ env.GERRIT_SERVER }}`;
+
+            const message = `The pull-request PR-${prNumber} has been submitted to Gerrit [${organization}](https://${gerritServer})!
+
+            **Gerrit Change(s):**
+            ${changeUrls}
+
+            **Important:** This PR will be closed automatically. Re-opening will create a new change - use the Gerrit link above for updates.`;
+
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: message
+            });
+          # yamllint enable rule:line-length
+
+      - name: "Close pull request"
+        if: github.event_name == 'pull_request_target'
+        run: |
+          echo "::notice::Closing PR #$PR_NUMBER after successful Gerrit submission"
+
+          if [[ -n "${SET_ISSUE_ID:-}" ]]; then
+            # Keep branch for issue tracking workflows
+            gh pr close --comment "Auto-closed: Submitted to Gerrit" "$PR_NUMBER"
+          else
+            # Delete branch for cleaner repo
+            gh pr close --comment "Auto-closed: Submitted to Gerrit" --delete-branch "$PR_NUMBER"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: "Workflow summary"
+        if: always()
+        run: |
+          {
+            echo "# GitHub2Gerrit Workflow Summary"
+            echo ""
+            echo "**PR Number:** $PR_NUMBER"
+            echo "**Repository:** ${{ github.repository }}"
+            echo "**Gerrit Server:** ${GERRIT_SERVER:-'Not set'}"
+            submission_mode="${{ inputs.SUBMIT_SINGLE_COMMITS == true && 'Individual commits' || 'Squashed commit' }}"
+            echo "**Submission Mode:** $submission_mode"
+
+            if [[ -n "${GERRIT_CHANGE_REQUEST_URL:-}" ]]; then
+              echo ""
+              echo "**✅ Success:** Changes submitted to Gerrit"
+              echo "**Gerrit URL(s):** $GERRIT_CHANGE_REQUEST_URL"
+            else
+              echo ""
+              echo "**❌ Status:** Workflow completed but no Gerrit URL available"
+            fi
+
+            echo ""
+            echo "**Timestamp:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: "Set job outputs"
+        if: env.GERRIT_CHANGE_REQUEST_URL != ''
+        run: |
+          echo "change_url=${GERRIT_CHANGE_REQUEST_URL}" >> "$GITHUB_OUTPUT"
+          echo "change_number=${GERRIT_CHANGE_REQUEST_NUM}" >> "$GITHUB_OUTPUT"

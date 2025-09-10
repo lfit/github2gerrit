@@ -4,6 +4,7 @@
 
 name: github2gerrit-reusable-workflow
 
+# yamllint disable-line rule:truthy
 on:
   workflow_call:
     inputs:
