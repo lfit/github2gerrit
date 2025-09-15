@@ -35,7 +35,7 @@ jobs:
       test-pr-number: ${{ steps.create-test-pr.outputs.pr-number }}
       test-repo-url: ${{ steps.setup.outputs.repo-url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: "Setup test repository"
         id: setup
@@ -80,7 +80,7 @@ jobs:
           - change-id-reuse
           - issue-id-integration
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: "Setup mock Gerrit server"
         run: |
@@ -197,7 +197,7 @@ jobs:
           - change-id-reuse
           - issue-id-lookup
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: "Setup regression test environment"
         run: |
@@ -311,7 +311,7 @@ jobs:
           - malformed-pr-data
           - conflicting-inputs
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: "Setup error scenario: ${{ matrix.error-type }}"
         run: |
@@ -366,7 +366,7 @@ jobs:
     runs-on: ubuntu-latest
     if: inputs.test_level == 'comprehensive' || github.event_name == 'schedule'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: "Performance benchmark V1 vs V2"
         run: |
