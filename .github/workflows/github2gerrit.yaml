@@ -368,7 +368,7 @@ jobs:
           fi
 
           # Dependabot workaround for LF projects enforcing an "issue-id" in commit message
-          if [[ -n ${{ env.SET_ISSUE_ID }} && '${{ vars.ISSUEID }}' == 'true' ]]; then
+          if [[ -n '${{ env.SET_ISSUE_ID }}' && '${{ vars.ISSUEID }}' == 'true' ]]; then
               # workaround to remove lines with --- or ...
               sed -i -e 's#^[ ]*---##g' -e 's#^[ ]*\.\.\.##g' commit-msg.txt
               issue_id="${{ env.SET_ISSUE_ID }}"
