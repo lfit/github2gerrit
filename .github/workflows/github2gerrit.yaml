@@ -204,6 +204,7 @@ jobs:
         with:
           json: ${{ vars.ISSUE_ID_LOOKUP_JSON }}
           key: ${{ env.key }}
+          default: ${{ vars.ISSUE_ID_DEFAULT }}
 
       - name: "Set IssueID in GITHUB_ENV"
         if: vars.ISSUEID == 'true'
