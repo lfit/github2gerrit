@@ -23,7 +23,7 @@ jobs:
     timeout-minutes: 3
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: "Install dependencies"
         run: |
@@ -84,7 +84,7 @@ jobs:
     timeout-minutes: 5
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: "Test dependencies installation"
         run: |
@@ -143,7 +143,7 @@ jobs:
     timeout-minutes: 8
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: "Setup test environment"
         run: |
@@ -253,7 +253,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: "Real Gerrit connection test (dry-run)"
         uses: ./
