@@ -113,7 +113,7 @@ jobs:
           echo "::notice::Installed git-review $(git review --version)"
 
       - name: "Checkout repository"
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: ${{ inputs.FETCH_DEPTH }}
           ref: ${{ github.event.pull_request.head.sha }}
