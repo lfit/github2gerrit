@@ -64,7 +64,7 @@ repos:
         stages: [pre-commit]
 
   - repo: https://github.com/adrienverge/yamllint.git
-    rev: cba56bcde1fdd01c1deb3f945e69764c291a6530  # frozen: v1.38.0
+    rev: cba56bcde1fdd01c1deb3f945e69764c291a6530 # frozen: v1.38.0
     hooks:
       - id: yamllint
         types: [yaml]
@@ -75,7 +75,7 @@ repos:
       - id: shellcheck
 
   - repo: https://github.com/Mateusz-Grzelinski/actionlint-py
-    rev: 85c37735ea69e5baf0681530e57e63deee0ce733  # frozen: v1.7.10.24
+    rev: 85c37735ea69e5baf0681530e57e63deee0ce733 # frozen: v1.7.10.24
     hooks:
       - id: actionlint
 
@@ -97,7 +97,7 @@ repos:
       - id: reuse
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: 45ef068da5f21267bb2a7ec4a623092959f09ce5  # frozen: v0.14.14
+    rev: 45ef068da5f21267bb2a7ec4a623092959f09ce5 # frozen: v0.14.14
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
