@@ -120,7 +120,7 @@ jobs:
           token: ${{ github.token }}
 
       - name: "Setup SSH key"
-        uses: shimataro/ssh-key-action@6b84f2e793b32fa0b03a379cadadec75cc539391
+        uses: shimataro/ssh-key-action@87a8f067114a8ce263df83e9ed5c849953548bc3
         with:
           key: ${{ secrets.GERRIT_SSH_PRIVKEY_G2G }}
           name: "id_rsa"
