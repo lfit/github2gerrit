@@ -8,7 +8,14 @@
 > [!WARNING]
 > **This action is deprecated and will be archived.** It receives no further updates, including security fixes. Use [`lfreleng-actions/github2gerrit-action`](https://github.com/lfreleng-actions/github2gerrit-action), its maintained replacement.
 >
-> To migrate, replace `lfit/github2gerrit@main` with the new composite action or its reusable workflow (`lfreleng-actions/github2gerrit-action/.github/workflows/github2gerrit.yaml`), pinned to a release commit SHA. The inputs, secret and variables described below keep their names. One behavior differs: the new action's `AUTOMATION_ONLY` input defaults to `true`, which closes pull requests not raised by automation tools such as Dependabot; set it to `false` to keep accepting human-authored pull requests. See the [new action's README](https://github.com/lfreleng-actions/github2gerrit-action#readme) for setup details.
+> To migrate, replace `lfit/github2gerrit@main` with the new composite action or its reusable workflow (`lfreleng-actions/github2gerrit-action/.github/workflows/github2gerrit.yaml`), pinned to a release commit SHA. The inputs documented below, the `GERRIT_SSH_PRIVKEY_G2G` secret and the `GERRIT_*` variables keep their names, but the new action is not a drop-in replacement:
+>
+> - `AUTOMATION_ONLY` defaults to `true`, which closes pull requests not raised by automation tools such as Dependabot. Set it to `false` to keep accepting human-authored pull requests.
+> - `PRESERVE_GITHUB_PRS` defaults to `true`, which leaves pull requests open after their changes reach Gerrit. Set it to `false` to keep closing them, as this action does.
+> - The `ISSUEID` variable and `inject-issue-id-action` give way to the `ISSUE_ID` and `ISSUE_ID_LOOKUP_JSON` inputs.
+> - The composite action's `url` and `change_number` outputs become `gerrit_change_request_url` and `gerrit_change_request_num`.
+>
+> See the [new action's README](https://github.com/lfreleng-actions/github2gerrit-action#readme) for setup details.
 
 The action extracts the commits from a GitHub pull-request and submits them to an upstream Gerrit repository. This allows GitHub developers to contribute to Gerrit-based repositories that are primarily maintained on Gerrit servers and replicated onto GitHub.
 
