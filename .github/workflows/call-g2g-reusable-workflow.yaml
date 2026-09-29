@@ -21,7 +21,8 @@ concurrency:
 
 jobs:
   call-in-g2g-workflow:
-    if: false
+    # Example caller: skipped unless the repository opts in
+    if: vars.G2G_RUN_EXAMPLE_WORKFLOWS == 'true'
     permissions:
       contents: read
       pull-requests: write
