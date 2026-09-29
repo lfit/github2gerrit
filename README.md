@@ -5,13 +5,17 @@
 
 # github2gerrit action
 
+> [!WARNING]
+> **This action is deprecated and will be archived.** It receives no further updates, including security fixes. Use [`lfreleng-actions/github2gerrit-action`](https://github.com/lfreleng-actions/github2gerrit-action), its maintained replacement.
+>
+> To migrate, replace `lfit/github2gerrit@main` with the new composite action or its reusable workflow (`lfreleng-actions/github2gerrit-action/.github/workflows/github2gerrit.yaml`), pinned to a release commit SHA. The inputs, secret and variables described below keep their names. One behavior differs: the new action's `AUTOMATION_ONLY` input defaults to `true`, which closes pull requests not raised by automation tools such as Dependabot; set it to `false` to keep accepting human-authored pull requests. See the [new action's README](https://github.com/lfreleng-actions/github2gerrit-action#readme) for setup details.
+
 The action extracts the commits from a GitHub pull-request and submits them to an upstream Gerrit repository. This allows GitHub developers to contribute to Gerrit-based repositories that are primarily maintained on Gerrit servers and replicated onto GitHub.
 
 ## Pre-requisites
 
-1. GitHub replication is set up on the Gerrit repository over SSH. Refer to the [Gerrit replication configuration setup guide](https://docs.releng.linuxfoundation.org/en/latest/infra/gerrit.html) maintained by the Linux Foundation release engineering team. This also requires creating ssh-keypair
-   and [registering the SSH keys](https://docs.releng.linuxfoundation.org/en/latest/gerrit.html#register-key-gerrit) with Gerrit.
-2. Create a user account on GitHub with permissions to submit changes to Gerrit and ensure it is added to the GitHub organization or repository as a member.
+1. GitHub replication is set up on the Gerrit repository over SSH. Refer to the [Gerrit replication configuration setup guide](https://docs.releng.linuxfoundation.org/en/latest/infra/gerrit.html) maintained by the Linux Foundation release engineering team.
+2. A dedicated Gerrit service account for the automation (for example `<organization>.gh2gerrit`), with permission to push to `refs/for/*` on the target projects, and an SSH key pair for it without a passphrase (`ssh-keygen -t ed25519 -N '' -f gh2gerrit_key`). A Gerrit administrator registers the **public** key (`gh2gerrit_key.pub`) on the account. The Gerrit web UI only manages the signed-in user's own keys, so use the REST API (`POST /a/accounts/<account>/sshkeys`) or `ssh -p 29418 <admin>@<gerrit-host> gerrit set-account --add-ssh-key - <account> < gh2gerrit_key.pub`. The **private** key goes only into the `GERRIT_SSH_PRIVKEY_G2G` GitHub secret (see below); never paste it into Gerrit.
 3. Use a [.gitreview](https://docs.opendev.org/opendev/git-review/latest/installation.html#gitreview-file-format) file point to the Gerrit server and repository. If this not alternatively pass the GERRIT_SERVER or GERRIT_PROJECT as inputs to the workflow.
 
 ## How the Action Works
@@ -60,14 +64,14 @@ Or, submit each commit as a separate single commit preserving the git history (S
 - `inputs.SUBMIT_SINGLE_COMMITS` has not be tested extensively for handling large pull requests.
 - Code review comments on Gerrit are not synchronized back to the pull request comment, therefore requires developers to follow up on the Gerrit change request URL. Rework through the recommended changes can be done by reopening the pull request and updating to the commits through a force push.
 
-## Required Inputs or Variables
+## Required Inputs, Secrets and Variables
 
-Set the following under Organization or repository variables.
+Store the private key as an organization or repository **secret**, and the other values as organization or repository **variables**. Never store the private key in a variable: variables are not masked in logs.
 
-- `GERRIT_KNOWN_HOSTS`: Known host of the Gerrit repository.
-- `GERRIT_SSH_PRIVKEY_G2G`: SSH private key pair (The private key has to be added to the Gerrit user's account settings. Gerrit -> User Settings).
-- `GERRIT_SSH_USER_G2G`: Gerrit server username (Required to connect to Gerrit).
-- `GERRIT_SSH_USER_G2G_EMAIL`: Email of the Gerrit user.
+- `GERRIT_KNOWN_HOSTS` (variable): Known host entries of the Gerrit server, for example from `ssh-keyscan -p 29418 <gerrit-host>`. Check the fingerprints against a trusted source before saving them.
+- `GERRIT_SSH_PRIVKEY_G2G` (secret): SSH private key of the Gerrit service account. Only its matching **public** key is registered in Gerrit (see Pre-requisites).
+- `GERRIT_SSH_USER_G2G` (variable): Gerrit service account username (Required to connect to Gerrit).
+- `GERRIT_SSH_USER_G2G_EMAIL` (variable): Email of the Gerrit service account.
 
 ## Optional Variables
 
@@ -82,7 +86,7 @@ Set the following under Organization or repository variables.
 - `GERRIT_SERVER`: Gerrit server FQDN (Default read from .gitreview).
 - `GERRIT_SERVER_PORT`: Gerrit server port (Default: 29418)
 - `ORGANIZATION`: The GitHub Organization or Project.
-- `REVIEWER_EMAIL`: Committers' email list (comma-separated list without spaces).
+- `REVIEWERS_EMAIL`: Committers' email list (comma-separated list without spaces).
 
 ## Full Example Usage with Composite Action
 
